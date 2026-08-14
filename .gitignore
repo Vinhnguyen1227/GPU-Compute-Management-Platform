@@ -1,11 +1,34 @@
-# Dependencies
+# Node.js / Frontend
 node_modules/
 frontend/node_modules/
-
-# Production build outputs
 dist/
 frontend/dist/
 build/
+
+# .NET / C# Build Outputs
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+TestResults/
+*.sublime-workspace
+
+# User-specific files & IDEs
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userossc
+*.sln.docstates
+*.cache
+
+# Build & Package artifacts
+*.dll
+*.exe
+*.pdb
+*.nupkg
+*.userprefs
 
 # Environment files
 .env
@@ -14,17 +37,12 @@ build/
 .env.test.local
 .env.production.local
 
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Editor and OS files
-.vscode/
-.idea/
-*.suo
-*.user
-*.userossc
+# OS files
 .DS_Store
 Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Agent / Temp logs
+.gemini/
+brain/

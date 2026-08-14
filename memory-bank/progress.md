@@ -2,18 +2,17 @@
 
 ## Milestones
 - [x] ADK Memory Bank initialized (6 core files)
-- [x] Implementation Plan approved by user
-- [x] Scaffolded React + Vite + TypeScript + Tailwind CSS application structure
-- [x] Implemented Shell Layout, Header, Sidebar & Navigation
-- [x] Implemented Auth Page (`/login`, `/register`)
-- [x] Implemented Cluster Overview Dashboard (`/dashboard`)
-- [x] Implemented AI Projects & Workspace (`/projects`, `/projects/:id`)
-- [x] Implemented Submit AI Job Form (`/jobs/new`)
-- [x] Implemented Job Center Queue & Real-time Log Monitor (`/jobs`, `/jobs/:id`)
-- [x] Implemented GPU Infrastructure Topology (`/resources`)
-- [x] Implemented Wallet & VietQR / VNPay Deposit Gateway (`/billing`)
-- [x] Implemented Admin Console & Maintenance Drain (`/admin`)
-- [x] Production build & Browser Subagent verification complete (0 lint/build errors)
+- [x] Web frontend complete (10 pages, DGX dark mode, simulated telemetry)
+- [x] Phase 1 Implementation Plan approved by user
+- [x] Installed .NET 9 SDK (v9.0.317)
+- [x] Scaffolded `backend/` workspace folder structure & Docker Compose stack
+- [x] Created 6 PostgreSQL DB init scripts (`auth_db`, `user_db`, `project_db`, `job_db`, `resource_db`, `payment_db`)
+- [x] Created Kafka topic initialization script (`create-topics.sh`)
+- [x] Created `Shared` project (Kafka event DTOs, topics constants, API response models)
+- [x] Created `ApiGateway` (Ocelot configuration & routes)
+- [x] Created 7 backend microservice skeletons (`AuthService`, `UserService`, `ProjectService`, `JobService`, `ResourceService`, `PaymentService`, `WorkerService`)
+- [x] Created solution file `AIComputePlatform.sln` linking all 9 C# projects
 
 ## Status Summary
-- Web application fully built and verified on local dev server (`http://localhost:3000`).
+- Phase 1 Foundation & Infrastructure complete.
+- Next step: Phase 2 — Auth + User + Gateway implementation.

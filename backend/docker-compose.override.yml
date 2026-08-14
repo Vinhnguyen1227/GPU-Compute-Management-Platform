@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: devpassword
+
+  gateway:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  auth-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  user-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  project-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  job-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  resource-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  payment-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+  worker-service:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
