@@ -70,7 +70,7 @@ services:
     volumes:
       - ./infra/kafka:/scripts
 
-  # --- Microservices Skeletons ---
+  # --- Microservices ---
   gateway:
     build:
       context: .
@@ -82,6 +82,10 @@ services:
       - redis
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - REDIS_CONNECTION=redis:6379
+      - JWT__SecretKey=${JWT_SECRET_KEY:-your-256-bit-secret-key-for-dev-environment-only-32bytes}
+      - JWT__Issuer=${JWT_ISSUER:-ai-cloud-platform}
+      - JWT__Audience=${JWT_AUDIENCE:-ai-cloud-clients}
 
   auth-service:
     build:
@@ -97,6 +101,13 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=auth_db;Username=postgres;Password=${POSTGRES_PASSWORD:-devpassword}
+      - REDIS_CONNECTION=redis:6379
+      - JWT__SecretKey=${JWT_SECRET_KEY:-your-256-bit-secret-key-for-dev-environment-only-32bytes}
+      - JWT__Issuer=${JWT_ISSUER:-ai-cloud-platform}
+      - JWT__Audience=${JWT_AUDIENCE:-ai-cloud-clients}
+      - JWT__AccessTokenExpiryMinutes=${JWT_ACCESS_TOKEN_EXPIRY_MINUTES:-15}
+      - JWT__RefreshTokenExpiryDays=${JWT_REFRESH_TOKEN_EXPIRY_DAYS:-30}
 
   user-service:
     build:
@@ -110,6 +121,10 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=user_db;Username=postgres;Password=${POSTGRES_PASSWORD:-devpassword}
+      - JWT__SecretKey=${JWT_SECRET_KEY:-your-256-bit-secret-key-for-dev-environment-only-32bytes}
+      - JWT__Issuer=${JWT_ISSUER:-ai-cloud-platform}
+      - JWT__Audience=${JWT_AUDIENCE:-ai-cloud-clients}
 
   project-service:
     build:
@@ -123,6 +138,10 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=project_db;Username=postgres;Password=${POSTGRES_PASSWORD:-devpassword}
+      - JWT__SecretKey=${JWT_SECRET_KEY:-your-256-bit-secret-key-for-dev-environment-only-32bytes}
+      - JWT__Issuer=${JWT_ISSUER:-ai-cloud-platform}
+      - JWT__Audience=${JWT_AUDIENCE:-ai-cloud-clients}
 
   job-service:
     build:
@@ -138,6 +157,11 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=job_db;Username=postgres;Password=${POSTGRES_PASSWORD:-devpassword}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JWT__SecretKey=${JWT_SECRET_KEY:-your-256-bit-secret-key-for-dev-environment-only-32bytes}
+      - JWT__Issuer=${JWT_ISSUER:-ai-cloud-platform}
+      - JWT__Audience=${JWT_AUDIENCE:-ai-cloud-clients}
 
   resource-service:
     build:
@@ -155,6 +179,12 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=resource_db;Username=postgres;Password=${POSTGRES_PASSWORD:-devpassword}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - REDIS_CONNECTION=redis:6379
+      - JWT__SecretKey=${JWT_SECRET_KEY:-your-256-bit-secret-key-for-dev-environment-only-32bytes}
+      - JWT__Issuer=${JWT_ISSUER:-ai-cloud-platform}
+      - JWT__Audience=${JWT_AUDIENCE:-ai-cloud-clients}
 
   payment-service:
     build:
@@ -170,6 +200,11 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=payment_db;Username=postgres;Password=${POSTGRES_PASSWORD:-devpassword}
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - JWT__SecretKey=${JWT_SECRET_KEY:-your-256-bit-secret-key-for-dev-environment-only-32bytes}
+      - JWT__Issuer=${JWT_ISSUER:-ai-cloud-platform}
+      - JWT__Audience=${JWT_AUDIENCE:-ai-cloud-clients}
 
   worker-service:
     build:
@@ -183,6 +218,7 @@ services:
         condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
 
 volumes:
   postgres-data:

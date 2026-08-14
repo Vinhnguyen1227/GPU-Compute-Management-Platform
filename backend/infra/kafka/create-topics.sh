@@ -2,7 +2,9 @@
 set -e
 
 echo "Waiting for Kafka to be ready..."
-cub kafka-ready -b kafka:29092 1 30
+# Docker Compose healthcheck ensures Kafka is healthy before this container starts.
+# Adding a small sleep as a safety buffer.
+sleep 5
 
 echo "Creating Kafka topics..."
 

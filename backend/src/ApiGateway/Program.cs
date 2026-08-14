@@ -11,7 +11,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "https://ai-cloud.io")
+        policy.WithOrigins(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "https://ai-cloud.io")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -27,5 +30,3 @@ app.UseCors("AllowFrontend");
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy", service = "ApiGateway" }));
 
 await app.UseOcelot();
-
-app.Run();
