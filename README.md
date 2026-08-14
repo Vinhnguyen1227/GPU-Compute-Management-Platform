@@ -46,16 +46,28 @@ GPU-Compute-Management-Platform/
 
 ---
 
-## 💻 Tech Stack & Architecture
+## 💻 Tech Stack & Dependencies
 
-### Frontend
-- **Framework:** React 18 with TypeScript
-- **Build Tool:** Vite 6
-- **Styling & UI:** Tailwind CSS v3, Custom NVIDIA DGX Glassmorphism Theme
-- **Icons:** Lucide React (`lucide-react`)
-- **Data Visualization:** Recharts (`recharts`)
+### Frontend Stack & Libraries (`frontend/package.json`)
 
-### Backend
+All frontend packages are automatically managed via `npm install` inside the `frontend/` folder:
+
+| Package | Version | Category | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`react`** | `^18.3.1` | Core Framework | UI component rendering engine |
+| **`react-dom`** | `^18.3.1` | Core Framework | DOM rendering adapter |
+| **`lucide-react`** | `^0.468.0` | UI Icons | NVIDIA DGX themed icons & action controls |
+| **`recharts`** | `^2.15.0` | Analytics | Real-time GPU telemetry, temperature, & cost trend charts |
+| **`clsx`** | `^2.1.1` | UI Utility | Conditional classname concatenation |
+| **`tailwind-merge`** | `^2.5.5` | UI Utility | Conflict-free Tailwind CSS class merging |
+| **`vite`** | `^6.0.3` | Build Tool | Next-gen dev server & lightning-fast bundler |
+| **`typescript`** | `^5.6.3` | Type System | Type safety & IDE autocomplete |
+| **`tailwindcss`** | `^3.4.16` | Styling Engine | Utility-first glassmorphism design system |
+| **`postcss` & `autoprefixer`** | `^8.4.49` / `^10.4.20` | CSS Processor | Vendor prefixing & CSS transformation |
+
+---
+
+### Backend Stack & Infrastructure (.NET 9 + Docker)
 - **Framework:** .NET 9 ASP.NET Core Web API
 - **API Gateway:** Ocelot Gateway
 - **Databases:** PostgreSQL 16 (6 isolated per-service databases)
@@ -65,38 +77,20 @@ GPU-Compute-Management-Platform/
 
 ---
 
-## 🖥️ Pages & Features Breakdown
+## ⚡ System Prerequisites
 
-| Page | Path | Key Functionalities & Features |
+Before running the platform, ensure the following tools are installed on your machine:
+
+| Requirement | Minimum Version | Installation Guide / Command |
 | :--- | :--- | :--- |
-| **Authentication** | `Auth` | Login and register portal with JWT token authentication. |
-| **Dashboard** | `/dashboard` | Main overview displaying active cluster health, GPU usage, active jobs, balance metrics, and cost trends. |
-| **Projects & Workspaces** | `/projects` | Manage user projects/workspaces, search & filter projects, and create new compute projects. |
-| **Project Detail** | `/projects/:id` | View workspace details, total spend, resource allocation, and associated training jobs. |
-| **Jobs List** | `/jobs` | Comprehensive list of training jobs (`QUEUED`, `RUNNING`, `COMPLETED`, `FAILED`). |
-| **Submit Job** | `/jobs/new` | Multi-step job wizard: Select PyTorch/TensorFlow framework, hardware specs (H100/A100/RTX4090), and cost calculator. |
-| **Job Monitor** | `/jobs/:id` | Real-time monitoring of running jobs with GPU memory utilization, temperature metrics, and live streaming logs. |
-| **Resource Cluster** | `/resources` | View GPU node cluster topology, node availability, memory capacity, and hardware specs. |
-| **Billing & Wallet** | `/billing` | Wallet balance top-up supporting VietQR and VNPay sandbox payment gateways with transaction history. |
-| **Admin Console** | `/admin` | Infrastructure panel for toggling node maintenance modes and cluster controls. |
+| **Node.js** | `v18.0.0+` (v20+ recommended) | [nodejs.org](https://nodejs.org/) or `winget install OpenJS.NodeJS` |
+| **npm** | `v9.0.0+` | Included automatically with Node.js |
+| **.NET SDK** | `.NET 9.0 SDK` | [dotnet.microsoft.com](https://dotnet.microsoft.com/) or `winget install Microsoft.DotNet.SDK.9` |
+| **Docker Desktop** | `v24.0.0+` | [docker.com](https://www.docker.com/products/docker-desktop/) |
 
 ---
 
-## ⚡ Prerequisites & System Dependencies
-
-Before running the platform, ensure the following dependencies are installed on your system:
-
-| Dependency | Required Version | Purpose | Installation Guide / Command |
-| :--- | :--- | :--- | :--- |
-| **Node.js** | `v18.0.0+` (v20+ recommended) | Frontend runtime environment | [nodejs.org](https://nodejs.org/) or `winget install OpenJS.NodeJS` |
-| **npm** | `v9.0.0+` | Package manager for frontend dependencies | Bundled with Node.js |
-| **.NET SDK** | `.NET 9.0 SDK` | Backend C# microservices compilation & runtime | [dotnet.microsoft.com](https://dotnet.microsoft.com/) or `winget install Microsoft.DotNet.SDK.9` |
-| **Docker Desktop** | `v24.0.0+` | Container runtime for PostgreSQL, Redis, Kafka, & Services | [docker.com](https://www.docker.com/products/docker-desktop/) |
-| **PowerShell / Bash** | Modern shell | Terminal execution environment | Built-in on Windows / Linux / macOS |
-
----
-
-## 🚀 Getting Started & Local Setup
+## 🚀 Getting Started & Installation Guide
 
 ### 1. Clone the Repository
 ```bash
@@ -104,38 +98,60 @@ git clone https://github.com/Vinhnguyen1227/GPU-Compute-Management-Platform.git
 cd GPU-Compute-Management-Platform
 ```
 
-### 2. Run the Frontend (React + Vite)
-```bash
-cd frontend
-npm install
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) (or `http://localhost:5173`) in your browser.
+---
 
-### 3. Run the Backend Infrastructure & Microservices (.NET 9 + Docker)
-Make sure **Docker Desktop** is running.
+### 2. Frontend Installation & Setup Guide
+
+To install all frontend dependencies (`react`, `recharts`, `lucide-react`, `tailwindcss`, `vite`, etc.):
+
+```bash
+# Navigate to the frontend directory
+cd frontend
+
+# Install all npm dependencies listed in package.json
+npm install
+```
+
+#### Running & Building the Frontend:
+```bash
+# Start local development server (with hot reload at http://localhost:3000 or :5173)
+npm run dev
+
+# Run TypeScript check & build production assets to dist/
+npm run build
+
+# Preview production build locally
+npm run preview
+
+# Run ESLint linter across source files
+npm run lint
+```
+
+> [!TIP]
+> **Troubleshooting Clean Install:** If you experience any dependency mismatch or node module caching issues, run:
+> ```bash
+> rm -rf node_modules package-lock.json
+> npm install
+> ```
+
+---
+
+### 3. Backend Setup Guide (.NET 9 + Docker)
+
+Make sure **Docker Desktop** is running on your computer.
 
 ```bash
 cd backend
 
-# Option A: Start Infrastructure only (PostgreSQL, Redis, Kafka, Zookeeper) for local C# debugging
+# Option A: Start Infrastructure services only (PostgreSQL, Redis, Kafka, Zookeeper)
 docker compose up -d postgres redis kafka zookeeper kafka-init
 
 # Option B: Start Full Backend Stack (Infrastructure + All 8 Microservices)
 docker compose up --build
 ```
 
-#### Build Backend Solution Locally (Outside Docker):
+#### Building Backend C# Solution Locally (Outside Docker):
 ```bash
 cd backend
 dotnet build AIComputePlatform.sln
 ```
-
----
-
-## 🛠️ Project Scripts & Verification
-
-- **`cd frontend && npm run dev`**: Start frontend development server.
-- **`cd frontend && npm run build`**: Production build of frontend app.
-- **`cd backend && dotnet build AIComputePlatform.sln`**: Compile all 9 C# backend projects.
-- **`cd backend && docker compose up --build`**: Spin up containerized microservices and databases.
