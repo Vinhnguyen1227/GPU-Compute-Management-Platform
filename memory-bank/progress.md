@@ -20,10 +20,17 @@
   - ProjectService CRUD, dataset metadata, JWT owner filtering, job count incrementing
   - JobService submission, cancellation, listing, Kafka event producer (`job.created`) & consumer (`job.assigned`), SSE log streaming
   - ResourceService node listing/telemetry, cluster metrics aggregate, atomic GPU scheduler (`SELECT FOR UPDATE SKIP LOCKED`), Kafka consumer (`job.created`) & event producer (`job.assigned`)
+- [x] **Phase 4 Complete**: Job Lifecycle & Worker Engine implemented
+  - WorkerService (`GpuSimulator`, `GpuJobWorker` BackgroundService Kafka Consumer)
+  - JobService SSE Log Broadcaster and 4 Kafka Consumers (`job.assigned`, `job.progress`, `job.completed`, `job.failed`)
+- [x] **Phase 5 Complete**: Payment, Wallet & Billing Engine implemented
+  - PaymentService (Wallets, Double-Entry Ledger, PayOS / VietQR / VNPay Gateway, Webhook Idempotency, Billing Engine)
   - Full solution build verified (`dotnet build backend/AIComputePlatform.sln` -> 0 errors, 0 warnings)
 
 ## Status Summary
 - Phase 1 Foundation & Infrastructure complete.
 - Phase 2 Auth + User + Gateway complete.
 - Phase 3 Project + Job + Resource complete.
-- Next step: Phase 4 — Worker Service & Full Job Lifecycle.
+- Phase 4 Job Lifecycle & Worker Engine complete.
+- Phase 5 Payment, Wallet & Billing Engine complete.
+- Next step: Phase 6 — Production Hardening & Observability.

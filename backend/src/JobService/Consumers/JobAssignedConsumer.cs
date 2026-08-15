@@ -1,10 +1,11 @@
+using JobService.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Shared.Constants;
 using Shared.Events;
 using Shared.Messaging;
-using JobService.Data;
 
 namespace JobService.Consumers;
 
@@ -14,10 +15,14 @@ public class JobAssignedConsumer : KafkaConsumerBase<JobAssignedEvent>
     private readonly ILogger<JobAssignedConsumer> _logger;
 
     public JobAssignedConsumer(
-        string bootstrapServers,
+        IConfiguration config,
         IServiceScopeFactory scopeFactory,
         ILogger<JobAssignedConsumer> logger)
-        : base(bootstrapServers, "job-service-assigned-group", KafkaTopics.JobAssigned, logger)
+        : base(
+            config["KAFKA_BOOTSTRAP_SERVERS"] ?? config["Kafka:BootstrapServers"] ?? "localhost:9092",
+            "job-service-assigned-group",
+            KafkaTopics.JobAssigned,
+            logger)
     {
         _scopeFactory = scopeFactory;
         _logger = logger;

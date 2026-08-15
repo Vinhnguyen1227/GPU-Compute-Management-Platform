@@ -13,8 +13,13 @@ public class JobEventProducer
         _kafkaProducer = kafkaProducer;
     }
 
-    public async Task PublishJobCreatedAsync(JobCreatedEvent eventData, CancellationToken cancellationToken = default)
+    public async Task PublishJobCreatedAsync(JobCreatedEvent @event, CancellationToken ct = default)
     {
-        await _kafkaProducer.ProduceAsync(KafkaTopics.JobCreated, eventData.JobId.ToString(), eventData, cancellationToken);
+        await _kafkaProducer.ProduceAsync(KafkaTopics.JobCreated, @event.JobId.ToString(), @event, ct);
+    }
+
+    public async Task PublishJobFailedAsync(JobFailedEvent @event, CancellationToken ct = default)
+    {
+        await _kafkaProducer.ProduceAsync(KafkaTopics.JobFailed, @event.JobId.ToString(), @event, ct);
     }
 }

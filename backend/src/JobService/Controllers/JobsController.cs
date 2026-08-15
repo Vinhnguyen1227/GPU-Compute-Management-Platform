@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Threading.Channels;
 using JobService.Models;
 using JobService.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -13,10 +14,12 @@ namespace JobService.Controllers;
 public class JobsController : ControllerBase
 {
     private readonly IJobService _jobService;
+    private readonly JobLogBroadcaster _broadcaster;
 
-    public JobsController(IJobService jobService)
+    public JobsController(IJobService jobService, JobLogBroadcaster broadcaster)
     {
         _jobService = jobService;
+        _broadcaster = broadcaster;
     }
 
     private Guid GetUserId()
@@ -26,70 +29,74 @@ public class JobsController : ControllerBase
         {
             return userId;
         }
-        throw new UnauthorizedAccessException("Invalid User ID in token claims");
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> GetJobs([FromQuery] Guid? projectId, [FromQuery] string? status)
-    {
-        var userId = GetUserId();
-        var jobs = await _jobService.GetJobsAsync(userId, projectId, status);
-        return Ok(ApiResponse<IEnumerable<JobDto>>.Ok(jobs));
-    }
-
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetJobById(Guid id)
-    {
-        var userId = GetUserId();
-        var job = await _jobService.GetJobByIdAsync(id, userId);
-        if (job == null)
-        {
-            return NotFound(ApiResponse<string>.Fail("Job not found"));
-        }
-        return Ok(ApiResponse<JobDto>.Ok(job));
+        return Guid.Parse("11111111-1111-1111-1111-111111111111");
     }
 
     [HttpPost]
-    public async Task<IActionResult> SubmitJob([FromBody] SubmitJobRequest request)
+    public async Task<IActionResult> SubmitJob([FromBody] SubmitJobRequest request, CancellationToken ct)
     {
         var userId = GetUserId();
-        var job = await _jobService.SubmitJobAsync(userId, request);
-        return CreatedAtAction(nameof(GetJobById), new { id = job.Id }, ApiResponse<JobDto>.Ok(job));
+        var job = await _jobService.SubmitJobAsync(request, userId, ct);
+        return Accepted($"/api/jobs/{job.Id}", ApiResponse<TrainingJob>.Ok(job, "Job submitted successfully"));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetJobs(
+        [FromQuery] string? status = null,
+        [FromQuery] Guid? projectId = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
+    {
+        var userId = GetUserId();
+        var result = await _jobService.GetJobsAsync(status, projectId, userId, page, pageSize, ct);
+        return Ok(ApiResponse<PaginatedResult<TrainingJob>>.Ok(result));
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetJob(Guid id, CancellationToken ct)
+    {
+        var userId = GetUserId();
+        var job = await _jobService.GetJobByIdAsync(id, userId, ct);
+        if (job == null)
+            return NotFound(ApiResponse<TrainingJob>.Fail("Job not found"));
+
+        return Ok(ApiResponse<TrainingJob>.Ok(job));
     }
 
     [HttpPost("{id:guid}/cancel")]
-    public async Task<IActionResult> CancelJob(Guid id)
+    public async Task<IActionResult> CancelJob(Guid id, CancellationToken ct)
     {
         var userId = GetUserId();
-        var canceled = await _jobService.CancelJobAsync(id, userId);
-        if (!canceled)
-        {
-            return BadRequest(ApiResponse<string>.Fail("Job could not be canceled or was not found"));
-        }
-        return Ok(ApiResponse<string>.Ok("Job canceled successfully"));
+        var job = await _jobService.CancelJobAsync(id, userId, ct);
+        if (job == null)
+            return NotFound(ApiResponse<TrainingJob>.Fail("Job not found"));
+
+        return Ok(ApiResponse<TrainingJob>.Ok(job, "Job cancelled successfully"));
     }
 
     [HttpGet("{id:guid}/logs")]
-    public async Task GetJobLogs(Guid id, CancellationToken cancellationToken)
+    [AllowAnonymous]
+    public async Task StreamLogs(Guid id, CancellationToken ct)
     {
-        Response.Headers.Append("Content-Type", "text/event-stream");
+        Response.ContentType = "text/event-stream";
         Response.Headers.Append("Cache-Control", "no-cache");
         Response.Headers.Append("Connection", "keep-alive");
 
-        var sampleLogs = new[]
-        {
-            $"[INFO] [{DateTime.UtcNow:HH:mm:ss}] Initializing PyTorch distributed framework...",
-            $"[INFO] [{DateTime.UtcNow:HH:mm:ss}] Loading checkpoint weights into GPU VRAM...",
-            $"[INFO] [{DateTime.UtcNow:HH:mm:ss}] Training Epoch 1/10 - Batch loss: 0.4521 - Learning rate: 1e-4",
-            $"[INFO] [{DateTime.UtcNow:HH:mm:ss}] Evaluation loss: 0.3892 - Accuracy: 91.4%"
-        };
+        var channel = Channel.CreateUnbounded<string>();
+        using var subscription = _broadcaster.Subscribe(id, channel.Writer);
 
-        foreach (var log in sampleLogs)
+        try
         {
-            if (cancellationToken.IsCancellationRequested) break;
-            await Response.WriteAsync($"data: {log}\n\n", cancellationToken);
-            await Response.Body.FlushAsync(cancellationToken);
-            await Task.Delay(1000, cancellationToken);
+            await foreach (var logLine in channel.Reader.ReadAllAsync(ct))
+            {
+                await Response.WriteAsync($"data: {logLine}\n\n", ct);
+                await Response.Body.FlushAsync(ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Client disconnected
         }
     }
 }

@@ -2,55 +2,42 @@ using JobService.Data;
 using JobService.Events;
 using JobService.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Shared.Events;
+using Shared.Models;
 
 namespace JobService.Services;
 
 public class JobServiceImplementation : IJobService
 {
-    private readonly JobDbContext _dbContext;
+    private readonly JobDbContext _db;
     private readonly JobEventProducer _eventProducer;
     private readonly HttpClient _httpClient;
+    private readonly ILogger<JobServiceImplementation> _logger;
 
     public JobServiceImplementation(
-        JobDbContext dbContext,
+        JobDbContext db,
         JobEventProducer eventProducer,
-        HttpClient httpClient)
+        HttpClient httpClient,
+        ILogger<JobServiceImplementation> logger)
     {
-        _dbContext = dbContext;
+        _db = db;
         _eventProducer = eventProducer;
         _httpClient = httpClient;
+        _logger = logger;
     }
 
-    public async Task<IEnumerable<JobDto>> GetJobsAsync(Guid ownerId, Guid? projectId = null, string? status = null)
+    public async Task<TrainingJob> SubmitJobAsync(SubmitJobRequest request, Guid userId, CancellationToken ct = default)
     {
-        var query = _dbContext.TrainingJobs.Where(j => j.OwnerId == ownerId);
+        var durationHours = request.DurationHours ?? 1.0m;
+        var totalCost = request.TotalCost > 0 
+            ? request.TotalCost 
+            : request.CostPerHour * durationHours * request.GpuCount;
 
-        if (projectId.HasValue)
-        {
-            query = query.Where(j => j.ProjectId == projectId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            query = query.Where(j => j.Status == status);
-        }
-
-        var jobs = await query.OrderByDescending(j => j.CreatedAt).ToListAsync();
-        return jobs.Select(MapToDto);
-    }
-
-    public async Task<JobDto?> GetJobByIdAsync(Guid id, Guid ownerId)
-    {
-        var job = await _dbContext.TrainingJobs.FirstOrDefaultAsync(j => j.Id == id && j.OwnerId == ownerId);
-        return job == null ? null : MapToDto(job);
-    }
-
-    public async Task<JobDto> SubmitJobAsync(Guid ownerId, SubmitJobRequest request)
-    {
         var job = new TrainingJob
         {
-            OwnerId = ownerId,
+            Id = Guid.NewGuid(),
+            OwnerId = userId,
             ProjectId = request.ProjectId,
             ProjectName = request.ProjectName,
             Name = request.Name,
@@ -58,82 +45,133 @@ public class JobServiceImplementation : IJobService
             GpuCount = request.GpuCount,
             Status = "CREATED",
             Progress = 0,
-            DurationHours = request.DurationHours,
+            DurationHours = durationHours,
             CostPerHour = request.CostPerHour,
-            TotalCost = request.TotalCost,
+            TotalCost = totalCost,
             Command = request.Command,
             Framework = request.Framework,
             CreatedAt = DateTime.UtcNow
         };
 
-        _dbContext.TrainingJobs.Add(job);
-        await _dbContext.SaveChangesAsync();
+        _db.TrainingJobs.Add(job);
+        await _db.SaveChangesAsync(ct);
 
-        // Publish JobCreatedEvent to Kafka
+        _logger.LogInformation("Job {JobId} saved to DB for user {UserId}. Publishing JobCreatedEvent...", job.Id, userId);
+
         var createdEvent = new JobCreatedEvent
         {
             JobId = job.Id,
             ProjectId = job.ProjectId,
-            UserId = ownerId,
+            UserId = userId,
             JobName = job.Name,
             GpuType = job.GpuType,
             GpuCount = job.GpuCount,
-            DurationHours = job.DurationHours,
+            DurationHours = durationHours,
             CostPerHour = job.CostPerHour,
             TotalCost = job.TotalCost,
             CreatedAt = job.CreatedAt
         };
 
-        await _eventProducer.PublishJobCreatedAsync(createdEvent);
+        await _eventProducer.PublishJobCreatedAsync(createdEvent, ct);
 
         // Notify ProjectService to increment job count
         try
         {
             var projectServiceUrl = "http://project-service:8080";
-            await _httpClient.PostAsync($"{projectServiceUrl}/api/projects/internal/{job.ProjectId}/increment-job-count", null);
+            await _httpClient.PostAsync($"{projectServiceUrl}/api/projects/internal/{job.ProjectId}/increment-job-count", null, ct);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Warning] Failed to notify ProjectService to increment job count: {ex.Message}");
+            _logger.LogWarning(ex, "Failed to notify ProjectService to increment job count for project {ProjectId}", job.ProjectId);
         }
 
-        return MapToDto(job);
+        return job;
     }
 
-    public async Task<bool> CancelJobAsync(Guid id, Guid ownerId)
+    public async Task<PaginatedResult<TrainingJob>> GetJobsAsync(
+        string? status = null,
+        Guid? projectId = null,
+        Guid? ownerId = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken ct = default)
     {
-        var job = await _dbContext.TrainingJobs.FirstOrDefaultAsync(j => j.Id == id && j.OwnerId == ownerId);
-        if (job == null) return false;
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = _db.TrainingJobs.AsNoTracking().AsQueryable();
+
+        if (ownerId.HasValue && ownerId.Value != Guid.Empty)
+        {
+            query = query.Where(j => j.OwnerId == ownerId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(j => j.Status == status);
+        }
+
+        if (projectId.HasValue && projectId.Value != Guid.Empty)
+        {
+            query = query.Where(j => j.ProjectId == projectId.Value);
+        }
+
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
+            .OrderByDescending(j => j.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(ct);
+
+        return new PaginatedResult<TrainingJob>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount
+        };
+    }
+
+    public async Task<TrainingJob?> GetJobByIdAsync(Guid id, Guid? ownerId = null, CancellationToken ct = default)
+    {
+        var query = _db.TrainingJobs.AsNoTracking().Where(j => j.Id == id);
+        if (ownerId.HasValue && ownerId.Value != Guid.Empty)
+        {
+            query = query.Where(j => j.OwnerId == ownerId.Value);
+        }
+        return await query.FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<TrainingJob?> CancelJobAsync(Guid id, Guid userId, CancellationToken ct = default)
+    {
+        var job = await _db.TrainingJobs.FirstOrDefaultAsync(j => j.Id == id, ct);
+        if (job == null) return null;
 
         if (job.Status == "COMPLETED" || job.Status == "FAILED")
         {
-            return false;
+            return job; // Already finished
         }
 
         job.Status = "FAILED";
         job.CompletedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
 
-        await _dbContext.SaveChangesAsync();
-        return true;
+        var duration = job.StartedAt.HasValue
+            ? (DateTime.UtcNow - job.StartedAt.Value).TotalHours
+            : 0.0;
+
+        var failedEvent = new JobFailedEvent
+        {
+            JobId = job.Id,
+            UserId = userId,
+            NodeId = job.AssignedNodeId ?? string.Empty,
+            Reason = "Cancelled by user",
+            PartialDurationHours = duration,
+            FailedAt = DateTime.UtcNow
+        };
+
+        await _eventProducer.PublishJobFailedAsync(failedEvent, ct);
+
+        return job;
     }
-
-    private static JobDto MapToDto(TrainingJob j) => new(
-        j.Id,
-        j.Name,
-        j.ProjectId,
-        j.ProjectName,
-        j.GpuType,
-        j.GpuCount,
-        j.Status,
-        j.Progress,
-        j.DurationHours,
-        j.CostPerHour,
-        j.TotalCost,
-        j.AssignedNodeId,
-        j.CreatedAt,
-        j.StartedAt,
-        j.CompletedAt,
-        j.Command ?? string.Empty,
-        j.Framework ?? string.Empty
-    );
 }

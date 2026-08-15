@@ -1,11 +1,12 @@
 using JobService.Models;
+using Shared.Models;
 
 namespace JobService.Services;
 
 public interface IJobService
 {
-    Task<IEnumerable<JobDto>> GetJobsAsync(Guid ownerId, Guid? projectId = null, string? status = null);
-    Task<JobDto?> GetJobByIdAsync(Guid id, Guid ownerId);
-    Task<JobDto> SubmitJobAsync(Guid ownerId, SubmitJobRequest request);
-    Task<bool> CancelJobAsync(Guid id, Guid ownerId);
+    Task<TrainingJob> SubmitJobAsync(SubmitJobRequest request, Guid userId, CancellationToken ct = default);
+    Task<PaginatedResult<TrainingJob>> GetJobsAsync(string? status = null, Guid? projectId = null, Guid? ownerId = null, int page = 1, int pageSize = 20, CancellationToken ct = default);
+    Task<TrainingJob?> GetJobByIdAsync(Guid id, Guid? ownerId = null, CancellationToken ct = default);
+    Task<TrainingJob?> CancelJobAsync(Guid id, Guid userId, CancellationToken ct = default);
 }

@@ -1,8 +1,11 @@
 using System.Text;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 using JobService.Consumers;
 using JobService.Data;
 using JobService.Events;
 using JobService.Services;
+using JobService.Validators;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -11,8 +14,11 @@ using Shared.Messaging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add Services
+// Controllers & Validation
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<SubmitJobRequestValidator>();
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHttpClient();
@@ -53,22 +59,33 @@ builder.Services.AddDbContext<JobDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 // Kafka Configuration
-var kafkaBootstrap = builder.Configuration["KAFKA_BOOTSTRAP_SERVERS"] ?? "localhost:9092";
+var kafkaBootstrap = builder.Configuration["KAFKA_BOOTSTRAP_SERVERS"] ?? builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
 builder.Services.AddSingleton<IKafkaProducer>(sp => new KafkaProducer(
     kafkaBootstrap,
     sp.GetRequiredService<ILogger<KafkaProducer>>()
 ));
-builder.Services.AddSingleton<JobEventProducer>();
 
-// Kafka Consumers
-builder.Services.AddHostedService(sp => new JobAssignedConsumer(
-    kafkaBootstrap,
-    sp.GetRequiredService<IServiceScopeFactory>(),
-    sp.GetRequiredService<ILogger<JobAssignedConsumer>>()
-));
-
-// Dependency Injection
+// App Services & Singletons
+builder.Services.AddSingleton<JobLogBroadcaster>();
+builder.Services.AddScoped<JobEventProducer>();
 builder.Services.AddScoped<IJobService, JobServiceImplementation>();
+
+// Kafka Consumers (Hosted Services)
+builder.Services.AddHostedService<JobAssignedConsumer>();
+builder.Services.AddHostedService<JobProgressConsumer>();
+builder.Services.AddHostedService<JobCompletedConsumer>();
+builder.Services.AddHostedService<JobFailedConsumer>();
+
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 
 var app = builder.Build();
 
@@ -78,6 +95,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
