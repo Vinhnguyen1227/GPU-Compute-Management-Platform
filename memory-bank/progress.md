@@ -12,7 +12,11 @@
 - [x] Created `ApiGateway` (Ocelot configuration & routes)
 - [x] Created 7 backend microservice skeletons (`AuthService`, `UserService`, `ProjectService`, `JobService`, `ResourceService`, `PaymentService`, `WorkerService`)
 - [x] Created solution file `AIComputePlatform.sln` linking all 9 C# projects
+- [x] Phase 4: Implemented `JobService` (EF Core, Models, REST Controller, SSE Log Streamer, 4 Kafka Consumers, Event Producer)
+- [x] Phase 4: Implemented `WorkerService` (`GpuSimulator`, `GpuJobWorker` BackgroundService Kafka Consumer)
+- [x] Phase 5: Implemented `PaymentService` (Wallets, Double-Entry Ledger, VietQR/VNPay Gateway, Webhook Idempotency, Billing Engine, Kafka Consumers for job.completed and job.failed)
 
 ## Status Summary
 - Phase 1 Foundation & Infrastructure complete.
-- Next step: Phase 2 — Auth + User + Gateway implementation.
+- Phase 4 Job Lifecycle & Worker Engine complete.
+- Phase 5 Payment, Wallet & Billing Engine complete.

@@ -1,5 +1,17 @@
 import React, { useState } from 'react';
-import { Wallet, QrCode, ArrowUpRight, ArrowDownLeft, ShieldCheck, CheckCircle2, History, Plus, CreditCard } from 'lucide-react';
+import { 
+  CreditCard, 
+  ArrowUpRight, 
+  History, 
+  ShieldCheck, 
+  Sparkles, 
+  QrCode, 
+  CheckCircle2, 
+  Copy, 
+  Check, 
+  Building2,
+  ExternalLink
+} from 'lucide-react';
 import { Transaction } from '../types';
 
 interface BillingWalletProps {
@@ -8,15 +20,46 @@ interface BillingWalletProps {
   onTopUp: (amount: number, method: 'VietQR' | 'VNPay' | 'MoMo') => void;
 }
 
-export const BillingWallet: React.FC<BillingWalletProps> = ({ balance, transactions, onTopUp }) => {
+export const BillingWallet: React.FC<BillingWalletProps> = ({
+  balance,
+  transactions,
+  onTopUp,
+}) => {
   const [showDepositModal, setShowDepositModal] = useState(false);
-  const [depositAmount, setDepositAmount] = useState<number>(100);
+  const [depositAmount, setDepositAmount] = useState<number>(4); // USD (100k VND)
   const [paymentGateway, setPaymentGateway] = useState<'VietQR' | 'VNPay' | 'MoMo'>('VietQR');
   const [showQR, setShowQR] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
+  const [transferCode, setTransferCode] = useState<string>('o1wCm');
+
+  const MB_BANK_BIN = '970422';
+  const MB_ACCOUNT_NO = '0932296788';
+  const MB_ACCOUNT_NAME = 'HOANG ANH TUAN';
+  const VND_EXCHANGE_RATE = 25000;
+
+  const amountVnd = Math.round(depositAmount * VND_EXCHANGE_RATE);
+  const vietQrUrl = `https://img.vietqr.io/image/${MB_BANK_BIN}-${MB_ACCOUNT_NO}-compact2.png?amount=${amountVnd}&addInfo=${encodeURIComponent(transferCode)}&accountName=${encodeURIComponent(MB_ACCOUNT_NAME)}`;
+
+  const generateRandomCode = (len = 5) => {
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+    let res = '';
+    for (let i = 0; i < len; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return res;
+  };
 
   const handleDepositSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (depositAmount <= 0) return;
+    setTransferCode(generateRandomCode(5));
     setShowQR(true);
+  };
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(transferCode);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   const handleConfirmPaid = () => {
@@ -26,70 +69,89 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({ balance, transacti
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-            <Wallet className="w-6 h-6 text-[#76B900]" />
-            <span>Wallet Balance & Payment Gateway</span>
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">Wallet Service, VietQR top-ups & usage ledger ledger auditability</p>
-        </div>
-        <button
-          onClick={() => setShowDepositModal(true)}
-          className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold text-sm flex items-center justify-center gap-2 hover:opacity-95 transition shadow-lg shadow-[#76B900]/20 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Top Up Balance</span>
-        </button>
+      <div>
+        <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+          <span>Billing, Wallets & Financial Ledger</span>
+          <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-[#76B900]/20 text-[#76B900] rounded-full border border-[#76B900]/40">
+            PAYOS & VIETQR VERIFIED
+          </span>
+        </h1>
+        <p className="text-sm text-slate-400 mt-1">
+          Real-time prepaid balance, automated GPU compute metering, and instant VietQR top-ups via MB Bank.
+        </p>
       </div>
 
-      {/* Wallet Balance Hero Card */}
+      {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800 bg-gradient-to-r from-emerald-950/40 via-slate-900 to-slate-950 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between text-xs font-mono text-slate-400 uppercase tracking-wider mb-2">
-              <span>Account Billing Wallet</span>
-              <span className="text-[#76B900] bg-[#76B900]/10 px-2 py-0.5 rounded border border-[#76B900]/30 font-semibold">
-                IDEMPOTENT PAYMENTS ENABLED
-              </span>
+        {/* Wallet Balance Card */}
+        <div className="glass-panel rounded-2xl border border-slate-800 p-6 relative overflow-hidden bg-gradient-to-br from-slate-900/90 to-slate-950/80">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+                Current Compute Balance
+              </div>
+              <div className="text-3xl font-black font-mono text-white mt-1">
+                ${balance.toFixed(2)}{' '}
+                <span className="text-xs text-slate-500 font-normal">USD</span>
+              </div>
+              <div className="text-xs font-mono text-[#76B900] mt-0.5">
+                ≈ {(balance * VND_EXCHANGE_RATE).toLocaleString('vi-VN')} VND
+              </div>
             </div>
-            <div className="text-4xl font-extrabold text-white font-mono tracking-tight mt-1">
-              ${balance.toFixed(2)} <span className="text-lg text-slate-400 font-normal">USD</span>
+            <div className="p-3 bg-[#76B900]/10 rounded-xl border border-[#76B900]/30 text-[#76B900]">
+              <CreditCard className="w-6 h-6" />
             </div>
-            <p className="text-xs text-slate-400 mt-2 font-mono">
-              Equivalent to approx <span className="text-emerald-400 font-bold">{(balance * 25450).toLocaleString()} VND</span>
-            </p>
           </div>
 
-          <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between font-mono text-xs text-slate-400">
-            <span>Billing Engine: Usage Metering Active</span>
-            <button
-              onClick={() => setShowDepositModal(true)}
-              className="text-[#76B900] hover:underline font-bold"
-            >
-              + Generate QR Top-Up
-            </button>
+          <button
+            onClick={() => {
+              setShowQR(false);
+              setShowDepositModal(true);
+            }}
+            className="w-full mt-2 py-2.5 px-4 rounded-xl bg-[#76B900] hover:bg-emerald-400 text-black font-extrabold text-xs font-mono tracking-wide transition flex items-center justify-center gap-2 shadow-lg shadow-[#76B900]/20"
+          >
+            <ArrowUpRight className="w-4 h-4 stroke-[3]" />
+            <span>Top Up Balance (VietQR / MB Bank)</span>
+          </button>
+        </div>
+
+        {/* MB Bank Account Details */}
+        <div className="glass-panel rounded-2xl border border-slate-800 p-6 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-400 uppercase">
+            <Building2 className="w-4 h-4 text-cyan-400" />
+            <span>Official Receiving Account</span>
+          </div>
+          <div className="space-y-1.5 font-mono text-xs">
+            <div className="flex justify-between text-slate-400">
+              <span>Bank:</span>
+              <span className="text-white font-bold">MB Bank (Quân Đội)</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Account Number:</span>
+              <span className="text-cyan-400 font-bold">{MB_ACCOUNT_NO}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Account Holder:</span>
+              <span className="text-white font-bold">{MB_ACCOUNT_NAME}</span>
+            </div>
+            <div className="flex justify-between text-slate-400">
+              <span>Gateway:</span>
+              <span className="text-[#76B900] font-bold">PayOS Webhook (Auto 3s)</span>
+            </div>
           </div>
         </div>
 
-        {/* Payment Safety Callout */}
-        <div className="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-2 font-mono">
-              <ShieldCheck className="w-4 h-4 text-[#76B900]" />
-              <span>Idempotent Callback Safety</span>
-            </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Every deposit callback uses unique payment reference IDs to prevent duplicate balance additions.
-            </p>
+        {/* Security & Idempotency Card */}
+        <div className="glass-panel rounded-2xl border border-slate-800 p-6 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-400 uppercase">
+            <ShieldCheck className="w-4 h-4 text-[#76B900]" />
+            <span>Automated Webhook Matching</span>
           </div>
-          <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-400 space-y-1">
-            <div>Supported Gateways:</div>
-            <div className="text-emerald-400 font-bold">● VietQR (Instant Bank Transfer)</div>
-            <div className="text-cyan-400 font-bold">● VNPay & MoMo e-Wallet</div>
-          </div>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Every deposit generates a unique transfer code (e.g. <span className="text-white font-mono font-bold">o1wCm</span>). When your banking app transfers money with that note, PayOS webhook instantly credits your wallet.
+          </p>
         </div>
       </div>
 
@@ -143,12 +205,17 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({ balance, transacti
         </div>
       </div>
 
-      {/* Deposit Modal with QR Simulation */}
+      {/* Deposit Modal with Real VietQR & PayOS */}
       {showDepositModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-          <div className="glass-panel w-full max-w-md rounded-2xl p-6 border border-slate-800 shadow-2xl relative">
-            <h2 className="text-lg font-bold text-white mb-2">Deposit Funds to Wallet</h2>
-            <p className="text-xs text-slate-400 mb-4 font-mono">Select payment gateway & scan QR code</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="glass-panel w-full max-w-lg rounded-2xl p-6 border border-slate-800 shadow-2xl relative">
+            <h2 className="text-lg font-bold text-white mb-1 flex items-center justify-between">
+              <span>Deposit Funds to GPU Wallet</span>
+              <span className="text-xs font-mono text-[#76B900] font-normal">MB Bank • VietQR</span>
+            </h2>
+            <p className="text-xs text-slate-400 mb-4 font-mono">
+              Scan QR with any Banking App (MB Bank, Vietcombank, Techcombank, MoMo)
+            </p>
 
             {!showQR ? (
               <form onSubmit={handleDepositSubmit} className="space-y-4">
@@ -173,27 +240,41 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({ balance, transacti
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">Top-Up Amount (USD)</label>
+                  <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">Select Top-Up Amount</label>
                   <div className="grid grid-cols-4 gap-2 mb-2">
-                    {[50, 100, 250, 500].map(amt => (
+                    {[
+                      { usd: 4, vnd: '100k' },
+                      { usd: 10, vnd: '250k' },
+                      { usd: 20, vnd: '500k' },
+                      { usd: 40, vnd: '1M' }
+                    ].map(item => (
                       <button
-                        key={amt}
+                        key={item.usd}
                         type="button"
-                        onClick={() => setDepositAmount(amt)}
-                        className={`py-1.5 text-xs font-mono rounded border ${
-                          depositAmount === amt ? 'bg-emerald-950 border-[#76B900] text-[#76B900] font-bold' : 'bg-slate-900 border-slate-800 text-slate-400'
+                        onClick={() => setDepositAmount(item.usd)}
+                        className={`py-2 text-xs font-mono rounded border text-center transition ${
+                          depositAmount === item.usd
+                            ? 'bg-emerald-950 border-[#76B900] text-[#76B900] font-bold'
+                            : 'bg-slate-900 border-slate-800 text-slate-400'
                         }`}
                       >
-                        ${amt}
+                        <div>${item.usd} USD</div>
+                        <div className="text-[10px] text-slate-500">{item.vnd} VND</div>
                       </button>
                     ))}
                   </div>
-                  <input
-                    type="number"
-                    value={depositAmount}
-                    onChange={(e) => setDepositAmount(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm font-mono text-white focus:border-[#76B900] focus:outline-none"
-                  />
+                  
+                  <div className="relative mt-2">
+                    <input
+                      type="number"
+                      value={depositAmount}
+                      onChange={(e) => setDepositAmount(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm font-mono text-white focus:border-[#76B900] focus:outline-none"
+                    />
+                    <div className="absolute right-3 top-2.5 text-xs font-mono text-slate-500">
+                      ≈ {(depositAmount * VND_EXCHANGE_RATE).toLocaleString('vi-VN')} VND
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-3 mt-6">
@@ -206,34 +287,75 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({ balance, transacti
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 rounded-lg bg-[#76B900] text-black font-extrabold text-xs hover:bg-emerald-400 transition"
+                    className="px-5 py-2.5 rounded-lg bg-[#76B900] text-black font-extrabold text-xs font-mono hover:bg-emerald-400 transition shadow-lg shadow-[#76B900]/20"
                   >
-                    Generate {paymentGateway} QR
+                    Generate {paymentGateway} QR (${depositAmount} / {amountVnd.toLocaleString('vi-VN')} VND)
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="text-center space-y-4">
-                <div className="p-4 bg-white rounded-xl inline-block shadow-xl">
-                  {/* Simulated VietQR graphic */}
-                  <div className="w-48 h-48 bg-slate-100 flex flex-col items-center justify-center border-2 border-dashed border-slate-400 p-2">
-                    <QrCode className="w-32 h-32 text-slate-900" />
-                    <div className="text-[10px] font-mono font-bold text-slate-800 mt-1 uppercase">
-                      {paymentGateway} - ${depositAmount} USD
+              <div className="space-y-4">
+                {/* QR Display Card */}
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex flex-col items-center space-y-3">
+                  <div className="bg-white p-2 rounded-xl shadow-2xl">
+                    <img 
+                      src={vietQrUrl} 
+                      alt="VietQR MB Bank" 
+                      className="w-64 h-auto rounded-lg"
+                    />
+                  </div>
+
+                  {/* Transfer Note Code Info */}
+                  <div className="w-full bg-slate-900/90 p-3 rounded-lg border border-slate-800 space-y-2 font-mono text-xs">
+                    <div className="flex justify-between items-center text-slate-400">
+                      <span>Exact Amount:</span>
+                      <span className="text-[#76B900] font-bold text-sm">
+                        {amountVnd.toLocaleString('vi-VN')} VND (${depositAmount} USD)
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-slate-400">
+                      <span>Transfer Message (Nội dung CK):</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="px-2 py-0.5 bg-emerald-950 text-[#76B900] border border-[#76B900]/50 rounded font-bold text-sm tracking-wider">
+                          {transferCode}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleCopyCode}
+                          className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                          title="Copy Transfer Code"
+                        >
+                          {copiedCode ? <Check className="w-3.5 h-3.5 text-[#76B900]" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center text-slate-400 text-[11px] pt-1 border-t border-slate-800">
+                      <span>MB Bank: <span className="text-slate-200 font-bold">{MB_ACCOUNT_NO}</span></span>
+                      <span>Owner: <span className="text-slate-200 font-bold">{MB_ACCOUNT_NAME}</span></span>
                     </div>
                   </div>
                 </div>
 
-                <div className="text-xs font-mono text-slate-300">
-                  Scan with your banking app or e-wallet to complete deposit.
+                <div className="text-[11px] font-mono text-slate-400 text-center">
+                  💡 Scanning the QR with your banking app will automatically set the amount to <span className="text-white font-bold">{amountVnd.toLocaleString('vi-VN')} VND</span> and the message to <span className="text-[#76B900] font-bold">{transferCode}</span>.
                 </div>
 
-                <button
-                  onClick={handleConfirmPaid}
-                  className="w-full py-3 rounded-lg bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold text-xs hover:opacity-90 transition shadow-lg shadow-[#76B900]/20"
-                >
-                  Simulate Bank Payment Success Callback
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowQR(false)}
+                    className="w-1/3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs transition"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleConfirmPaid}
+                    className="w-2/3 py-2.5 rounded-lg bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold font-mono text-xs hover:opacity-95 transition shadow-lg shadow-[#76B900]/20"
+                  >
+                    Simulate Payment Callback (+${depositAmount})
+                  </button>
+                </div>
               </div>
             )}
           </div>

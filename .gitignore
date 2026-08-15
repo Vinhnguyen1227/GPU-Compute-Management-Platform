@@ -46,3 +46,10 @@ desktop.ini
 # Agent / Temp logs
 .gemini/
 brain/
+
+
+# Secrets and environment files
+appsettings.Secrets.json
+appsettings.*.Secrets.json
+*.env
+.env
