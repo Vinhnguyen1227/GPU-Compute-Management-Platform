@@ -1,22 +1,24 @@
 # Active Context
 
 ## Current Status
-- Finished Phase 2 — Auth + User + Gateway Services implementation.
-- Solution builds cleanly (`dotnet build AIComputePlatform.sln` -> 0 errors, 0 warnings).
+- Finished Phase 3 — Project + Job + Resource Services implementation.
+- Solution builds cleanly (`dotnet build backend/AIComputePlatform.sln` -> 0 errors, 0 warnings across all 9 projects).
 
 ## Key Accomplishments
-- **AuthService**:
-  - Implemented `UserAuth` model & EF Core `AuthDbContext`.
-  - Implemented `JwtTokenService` for token generation & refresh token rotation.
-  - Implemented `AuthService` logic for `Register`, `Login`, `Refresh`, and `Logout` (with Redis token revocation).
-  - Added FluentValidation request validators.
-  - Built `AuthController` and configured DI in `Program.cs`.
-- **UserService**:
-  - Implemented `UserProfile` model & EF Core `UserDbContext`.
-  - Implemented `UserService` profile CRUD (`GET /me`, `PUT /me`, `GET /{id}`).
-  - Added internal profile creation endpoint (`POST /internal/create`) for `AuthService` integration.
-  - Added internal wallet balance lookup to `PaymentService`.
-  - Built `UsersController` and configured JWT Bearer authentication in `Program.cs`.
+- **ProjectService**:
+  - Implemented `Project` model & `ProjectDbContext`.
+  - Built `IProjectService` / `ProjectServiceImplementation` for project CRUD filtered by JWT user ID (`sub`).
+  - Added internal endpoint `POST /api/projects/internal/{id}/increment-job-count` for `JobService` integration.
+  - Built `ProjectsController` and configured JWT Bearer authentication in `Program.cs`.
+- **JobService**:
+  - Implemented `TrainingJob` model & `JobDbContext`.
+  - Built `JobEventProducer` to publish `job.created` Kafka events on job submission.
+  - Built `JobAssignedConsumer` (BackgroundService) to process `job.assigned` events and transition jobs to `RUNNING` status with assigned node ID.
+  - Built `IJobService` / `JobServiceImplementation` and `JobsController` (including SSE streaming placeholder endpoint `/api/jobs/{id}/logs`).
+- **ResourceService**:
+  - Implemented `GpuNode` model & `ResourceDbContext`.
+  - Built `SchedulerService` using atomic PostgreSQL row locking (`SELECT ... FOR UPDATE SKIP LOCKED`) for GPU allocation.
+  - Built `JobCreatedConsumer` (BackgroundService) listening on `job.created` -> invokes `SchedulerService` -> assigns GPU node -> publishes `job.assigned` Kafka event.
+  - Built `GpuNodesController` and `ClusterMetricsController`.
 - **ApiGateway**:
-  - Configured Ocelot routes (`/api/auth/*`, `/api/users/*`).
-  - Configured CORS policies for frontend development origins (`http://localhost:3000`, `http://localhost:5173`).
+  - Verified routing for `/api/projects/*`, `/api/jobs/*`, `/api/gpu-nodes/*`, and `/api/cluster/*`.

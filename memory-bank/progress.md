@@ -16,8 +16,14 @@
   - Auth registration, login, refresh token rotation, logout (Redis blacklist)
   - User profile CRUD, profile auto-creation, payment wallet balance lookup
   - Solution build verified (0 errors, 0 warnings)
+- [x] **Phase 3 Complete**: Project + Job + Resource Services fully implemented
+  - ProjectService CRUD, dataset metadata, JWT owner filtering, job count incrementing
+  - JobService submission, cancellation, listing, Kafka event producer (`job.created`) & consumer (`job.assigned`), SSE log streaming
+  - ResourceService node listing/telemetry, cluster metrics aggregate, atomic GPU scheduler (`SELECT FOR UPDATE SKIP LOCKED`), Kafka consumer (`job.created`) & event producer (`job.assigned`)
+  - Full solution build verified (`dotnet build backend/AIComputePlatform.sln` -> 0 errors, 0 warnings)
 
 ## Status Summary
 - Phase 1 Foundation & Infrastructure complete.
 - Phase 2 Auth + User + Gateway complete.
-- Next step: Phase 3 — Project + Job + Resource Services.
+- Phase 3 Project + Job + Resource complete.
+- Next step: Phase 4 — Worker Service & Full Job Lifecycle.
