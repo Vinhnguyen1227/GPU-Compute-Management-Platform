@@ -12,6 +12,9 @@ export interface User {
   avatarUrl: string;
   balance: number; // in VND
   currency: string;
+  status: 'ACTIVE' | 'BANNED';
+  createdAt: string;
+  totalJobsRun: number;
 }
 
 export interface Project {
@@ -43,6 +46,7 @@ export interface TrainingJob {
   completedAt?: string;
   command: string;
   framework: string;
+  userId?: string;
 }
 
 export interface GPUNode {
@@ -62,11 +66,11 @@ export interface GPUNode {
 export interface Transaction {
   id: string;
   userId: string;
-  type: 'DEPOSIT' | 'GPU_USAGE' | 'REFUND';
+  type: 'DEPOSIT' | 'GPU_USAGE' | 'REFUND' | 'ADMIN_ADJUSTMENT';
   amount: number; // VND
   currency: string;
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
-  paymentMethod?: 'VietQR' | 'VNPay' | 'MoMo' | 'System';
+  paymentMethod?: 'VietQR' | 'VNPay' | 'MoMo' | 'System' | 'Admin';
   referenceCode: string;
   description: string;
   timestamp: string;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './i18n';
 import { Shell } from './components/layout/Shell';
 import { Auth } from './pages/Auth';
@@ -13,39 +13,151 @@ import { BillingWallet } from './pages/BillingWallet';
 import { AdminConsole } from './pages/AdminConsole';
 
 import { 
-  mockUser, 
+  mockUsersList,
   mockProjects, 
   mockJobs, 
   mockNodes, 
   mockTransactions, 
-  mockClusterMetrics 
+  mockClusterMetrics,
+  initialGpuPricing
 } from './data/mockData';
-import { User, Project, TrainingJob, GPUNode, Transaction } from './types';
+import { User, Project, TrainingJob, GPUNode, Transaction, GPUType, Role } from './types';
 
 export function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(mockUser);
+  const [users, setUsers] = useState<User[]>(() => {
+    const saved = localStorage.getItem('dgx_users');
+    return saved ? JSON.parse(saved) : mockUsersList;
+  });
+
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('dgx_current_user');
+    return saved ? JSON.parse(saved) : mockUsersList[0]; // Defaults to Admin
+  });
+
   const [currentPath, setCurrentPath] = useState<string>('/dashboard');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
-  // State entities
+  // Entities state
   const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [jobs, setJobs] = useState<TrainingJob[]>(mockJobs);
   const [nodes, setNodes] = useState<GPUNode[]>(mockNodes);
   const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
   const [metrics, setMetrics] = useState(mockClusterMetrics);
+  const [gpuPricing, setGpuPricing] = useState<Record<GPUType, number>>(initialGpuPricing);
+
+  // Save users state to localStorage
+  useEffect(() => {
+    localStorage.setItem('dgx_users', JSON.stringify(users));
+  }, [users]);
+
+  // Save current user to localStorage
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('dgx_current_user', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('dgx_current_user');
+    }
+  }, [currentUser]);
 
   if (!currentUser) {
-    return <Auth onLogin={(user) => { setCurrentUser(user); setCurrentPath('/dashboard'); }} />;
+    return (
+      <Auth
+        usersList={users}
+        onLogin={(user) => {
+          setCurrentUser(user);
+          setCurrentPath('/dashboard');
+        }}
+        onRegister={(newUserData) => {
+          const newUser: User = {
+            ...newUserData,
+            id: `usr_${Date.now().toString().slice(-4)}`,
+            createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+            totalJobsRun: 0,
+          };
+          setUsers([newUser, ...users]);
+          return newUser;
+        }}
+      />
+    );
   }
 
+  const handleLogout = () => {
+    setCurrentUser(null);
+  };
+
   const handleNavigate = (path: string) => {
+    // Route guard: Non-admin users cannot access /admin
+    if (path === '/admin' && currentUser.role !== 'ADMIN' && currentUser.role !== 'ENGINEER') {
+      setCurrentPath('/dashboard');
+      return;
+    }
     setCurrentPath(path);
     if (!path.startsWith('/projects/')) {
       setSelectedProjectId(null);
     }
   };
 
-  // Handlers
+  // ADMIN HANDLERS
+  const handleUpdateUserRole = (userId: string, newRole: Role) => {
+    setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    if (currentUser.id === userId) {
+      setCurrentUser({ ...currentUser, role: newRole });
+    }
+  };
+
+  const handleAdjustUserBalance = (userId: string, amount: number) => {
+    setUsers(users.map(u => u.id === userId ? { ...u, balance: Math.max(0, u.balance + amount) } : u));
+    if (currentUser.id === userId) {
+      setCurrentUser(prev => prev ? { ...prev, balance: Math.max(0, prev.balance + amount) } : prev);
+    }
+
+    const targetUser = users.find(u => u.id === userId);
+    const newTx: Transaction = {
+      id: `tx-adj-${Date.now().toString().slice(-4)}`,
+      userId: userId,
+      type: 'ADMIN_ADJUSTMENT',
+      amount: amount,
+      currency: 'VND',
+      status: 'SUCCESS',
+      paymentMethod: 'Admin',
+      referenceCode: `ADM-${Date.now().toString().slice(-6)}`,
+      description: `Điều chỉnh số dư ví từ Quản trị viên (${amount >= 0 ? '+' : ''}${amount.toLocaleString('vi-VN')}₫)`,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    };
+    setTransactions([newTx, ...transactions]);
+  };
+
+  const handleToggleUserStatus = (userId: string) => {
+    setUsers(users.map(u => {
+      if (u.id === userId) {
+        const nextStatus = u.status === 'ACTIVE' ? 'BANNED' : 'ACTIVE';
+        return { ...u, status: nextStatus };
+      }
+      return u;
+    }));
+  };
+
+  const handleUpdateGpuPricing = (gpuType: GPUType, newRate: number) => {
+    setGpuPricing(prev => ({ ...prev, [gpuType]: newRate }));
+  };
+
+  const handleForceKillJob = (jobId: string) => {
+    const targetJob = jobs.find(j => j.id === jobId);
+    if (!targetJob) return;
+
+    setJobs(jobs.map(j => j.id === jobId ? { ...j, status: 'FAILED', progress: j.progress } : j));
+    if (targetJob.assignedNodeId) {
+      setNodes(nodes.map(n => n.id === targetJob.assignedNodeId ? {
+        ...n,
+        status: 'AVAILABLE',
+        currentJobId: undefined,
+        currentJobName: undefined,
+        gpuUtilPercent: 0,
+      } : n));
+    }
+  };
+
+  // STANDARD WORKFLOW HANDLERS
   const handleCreateProject = (newProjData: Omit<Project, 'id' | 'createdAt' | 'jobCount' | 'ownerId'>) => {
     const newId = `proj-0${projects.length + 1}`;
     const newProj: Project = {
@@ -60,38 +172,80 @@ export function App() {
 
   const handleSubmitJob = (jobData: Omit<TrainingJob, 'id' | 'createdAt' | 'status' | 'progress'>) => {
     const newId = `job-${900 + jobs.length + 1}`;
+    const targetNode = nodes.find(n => n.status === 'AVAILABLE') || nodes[0];
+
     const newJob: TrainingJob = {
       ...jobData,
       id: newId,
-      status: 'QUEUED',
-      progress: 0,
+      status: 'RUNNING',
+      progress: 5,
       createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      startedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      assignedNodeId: targetNode.id,
+      totalCost: 0,
+      userId: currentUser.id,
     };
 
     setJobs([newJob, ...jobs]);
-    setCurrentUser(prev => prev ? { ...prev, balance: prev.balance - jobData.totalCost } : prev);
-    
-    // Add usage transaction (VND)
+
+    setNodes(nodes.map(n => n.id === targetNode.id ? {
+      ...n,
+      status: 'BUSY',
+      currentJobId: newId,
+      currentJobName: jobData.name,
+      gpuUtilPercent: 92,
+    } : n));
+
+    setProjects(projects.map(p => p.id === jobData.projectId ? { ...p, jobCount: p.jobCount + 1 } : p));
+  };
+
+  const handleCancelJob = (jobId: string) => {
+    const targetJob = jobs.find(j => j.id === jobId);
+    if (!targetJob) return;
+
+    const actualElapsedHours = 1.0;
+    const actualUsageFee = Math.round(actualElapsedHours * targetJob.costPerHour * targetJob.gpuCount);
+
+    setCurrentUser(prev => prev ? { ...prev, balance: Math.max(0, prev.balance - actualUsageFee) } : prev);
+    setUsers(users.map(u => u.id === currentUser.id ? { ...u, balance: Math.max(0, u.balance - actualUsageFee) } : u));
+
     const newTx: Transaction = {
       id: `tx-${1000 + transactions.length + 1}`,
       userId: currentUser.id,
       type: 'GPU_USAGE',
-      amount: -jobData.totalCost,
+      amount: -actualUsageFee,
       currency: 'VND',
       status: 'SUCCESS',
       paymentMethod: 'System',
-      referenceCode: `BILL-${newId}`,
-      description: `Trừ phí GPU cho ${jobData.name}`,
+      referenceCode: `BILL-${targetJob.id}`,
+      description: `Phí thuê GPU thực tế cho ${targetJob.name} (${actualElapsedHours}h)`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
     setTransactions([newTx, ...transactions]);
 
-    // Update project job count
-    setProjects(projects.map(p => p.id === jobData.projectId ? { ...p, jobCount: p.jobCount + 1 } : p));
+    setJobs(jobs.map(j => j.id === jobId ? {
+      ...j,
+      status: 'COMPLETED',
+      totalCost: actualUsageFee,
+      progress: 100,
+      completedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    } : j));
+
+    if (targetJob.assignedNodeId) {
+      setNodes(nodes.map(n => n.id === targetJob.assignedNodeId ? {
+        ...n,
+        status: 'AVAILABLE',
+        currentJobId: undefined,
+        currentJobName: undefined,
+        gpuUtilPercent: 0,
+      } : n));
+    }
   };
 
   const handleTopUp = (amount: number, method: 'VietQR' | 'VNPay' | 'MoMo') => {
     setCurrentUser(prev => prev ? { ...prev, balance: prev.balance + amount } : prev);
+    setUsers(users.map(u => u.id === currentUser.id ? { ...u, balance: u.balance + amount } : u));
+
     const newTx: Transaction = {
       id: `tx-${1000 + transactions.length + 1}`,
       userId: currentUser.id,
@@ -105,10 +259,6 @@ export function App() {
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
     setTransactions([newTx, ...transactions]);
-  };
-
-  const handleCancelJob = (jobId: string) => {
-    setJobs(jobs.map(j => j.id === jobId ? { ...j, status: 'FAILED', progress: j.progress } : j));
   };
 
   const handleToggleNodeStatus = (nodeId: string) => {
@@ -174,7 +324,7 @@ export function App() {
           />
         );
       case '/jobs':
-        return <JobsList jobs={jobs} onNavigate={handleNavigate} />;
+        return <JobsList jobs={jobs} onNavigate={handleNavigate} onCancelJob={handleCancelJob} />;
       case '/resources':
         return <ResourceCluster nodes={nodes} />;
       case '/billing':
@@ -186,14 +336,28 @@ export function App() {
           />
         );
       case '/admin':
-        return <AdminConsole nodes={nodes} onToggleNodeStatus={handleToggleNodeStatus} />;
+        return (
+          <AdminConsole
+            nodes={nodes}
+            users={users}
+            jobs={jobs}
+            transactions={transactions}
+            gpuPricing={gpuPricing}
+            onToggleNodeStatus={handleToggleNodeStatus}
+            onUpdateUserRole={handleUpdateUserRole}
+            onAdjustUserBalance={handleAdjustUserBalance}
+            onToggleUserStatus={handleToggleUserStatus}
+            onUpdateGpuPricing={handleUpdateGpuPricing}
+            onForceKillJob={handleForceKillJob}
+          />
+        );
       default:
         return <Dashboard metrics={metrics} jobs={jobs} nodes={nodes} onNavigate={handleNavigate} />;
     }
   };
 
   return (
-    <Shell currentPath={currentPath} onNavigate={handleNavigate} user={currentUser}>
+    <Shell currentPath={currentPath} onNavigate={handleNavigate} onLogout={handleLogout} user={currentUser}>
       {renderContent()}
     </Shell>
   );

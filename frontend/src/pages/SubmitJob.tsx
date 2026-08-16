@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Cpu, Play, Terminal, Calculator, AlertTriangle } from 'lucide-react';
+import { Cpu, Play, Terminal, Calculator, AlertTriangle, ShieldCheck, Zap, Info } from 'lucide-react';
 import { Project, GPUType, TrainingJob } from '../types';
 
 interface SubmitJobProps {
@@ -28,8 +28,8 @@ export const SubmitJob: React.FC<SubmitJobProps> = ({ projects, onSubmitJob, onN
   const [framework] = useState('PyTorch 2.4 + CUDA 12.4');
 
   const costPerHour = gpuPricing[gpuType] * gpuCount;
-  const totalCost = costPerHour * durationHours;
-  const isInsufficient = totalCost > userBalance;
+  const minRequiredBalance = costPerHour * durationHours;
+  const isInsufficient = userBalance < minRequiredBalance;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +43,7 @@ export const SubmitJob: React.FC<SubmitJobProps> = ({ projects, onSubmitJob, onN
       gpuCount,
       durationHours,
       costPerHour: gpuPricing[gpuType],
-      totalCost,
+      totalCost: 0, // Starts at 0 in Pay-As-You-Go; accumulates live
       command,
       framework,
     });
@@ -58,6 +58,15 @@ export const SubmitJob: React.FC<SubmitJobProps> = ({ projects, onSubmitJob, onN
           <span>{t('submit_job.title')}</span>
         </h1>
         <p className="text-sm text-slate-400 mt-1">{t('submit_job.subtitle')}</p>
+      </div>
+
+      {/* Pay-as-you-go Banner */}
+      <div className="glass-panel p-4 rounded-xl border border-emerald-800/60 bg-emerald-950/20 flex items-start gap-3">
+        <Zap className="w-5 h-5 text-[#76B900] shrink-0 mt-0.5" />
+        <div className="text-xs">
+          <div className="font-bold text-[#76B900] uppercase tracking-wider">{t('submit_job.pay_as_you_go_badge')}</div>
+          <div className="text-slate-300 mt-0.5">{t('submit_job.pay_as_you_go_desc')}</div>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -119,7 +128,7 @@ export const SubmitJob: React.FC<SubmitJobProps> = ({ projects, onSubmitJob, onN
             </div>
           </div>
 
-          {/* GPU Count & Max Duration */}
+          {/* GPU Count & Estimated Duration */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider mb-2">{t('submit_job.gpu_cards')}</label>
@@ -135,7 +144,9 @@ export const SubmitJob: React.FC<SubmitJobProps> = ({ projects, onSubmitJob, onN
             </div>
 
             <div>
-              <label className="block text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider mb-2">{t('submit_job.runtime')}</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-mono font-semibold text-slate-300 uppercase tracking-wider">{t('submit_job.runtime')}</label>
+              </div>
               <input
                 type="number"
                 min={1}
@@ -144,6 +155,7 @@ export const SubmitJob: React.FC<SubmitJobProps> = ({ projects, onSubmitJob, onN
                 onChange={(e) => setDurationHours(Number(e.target.value))}
                 className="w-full px-4 py-2.5 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-100 font-mono focus:border-[#76B900] focus:outline-none font-bold"
               />
+              <p className="text-[11px] text-slate-500 font-mono mt-1">{t('submit_job.runtime_help')}</p>
             </div>
           </div>
 
@@ -192,9 +204,15 @@ export const SubmitJob: React.FC<SubmitJobProps> = ({ projects, onSubmitJob, onN
                 </div>
               </div>
 
-              <div className="flex justify-between items-baseline mb-6 font-mono">
-                <span className="text-xs uppercase font-bold text-slate-300">{t('submit_job.total_billed')}</span>
-                <span className="text-2xl font-extrabold text-[#76B900]">{totalCost.toLocaleString('vi-VN')}₫</span>
+              <div className="mb-6 font-mono bg-slate-950/80 p-3.5 rounded-xl border border-slate-800">
+                <div className="text-[11px] text-slate-400 uppercase font-semibold mb-1 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#76B900]" />
+                  <span>{t('submit_job.min_balance_required')}</span>
+                </div>
+                <div className="text-2xl font-extrabold text-[#76B900]">{minRequiredBalance.toLocaleString('vi-VN')}₫</div>
+                <div className="text-[10px] text-slate-500 mt-1">
+                  (Ví hiện có: <span className="text-slate-300 font-bold">{userBalance.toLocaleString('vi-VN')}₫</span> — Chỉ thanh toán thời gian chạy thực tế)
+                </div>
               </div>
 
               {isInsufficient && (
@@ -202,7 +220,7 @@ export const SubmitJob: React.FC<SubmitJobProps> = ({ projects, onSubmitJob, onN
                   <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                   <div>
                     <div className="font-bold">{t('submit_job.insufficient')}</div>
-                    <div>{t('submit_job.insufficient_desc', { balance: userBalance.toLocaleString('vi-VN') + '₫', cost: totalCost.toLocaleString('vi-VN') + '₫' })}</div>
+                    <div>{t('submit_job.insufficient_desc', { balance: userBalance.toLocaleString('vi-VN') + '₫', cost: minRequiredBalance.toLocaleString('vi-VN') + '₫' })}</div>
                   </div>
                 </div>
               )}

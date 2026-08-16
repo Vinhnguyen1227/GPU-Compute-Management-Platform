@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Cpu, PlayCircle, CheckCircle2, XCircle, Clock, Search, Filter, Plus } from 'lucide-react';
+import { Cpu, PlayCircle, CheckCircle2, XCircle, Clock, Search, Filter, Plus, Square } from 'lucide-react';
 import { TrainingJob, JobStatus } from '../types';
 
 interface JobsListProps {
   jobs: TrainingJob[];
   onNavigate: (path: string) => void;
+  onCancelJob?: (jobId: string) => void;
 }
 
-export const JobsList: React.FC<JobsListProps> = ({ jobs, onNavigate }) => {
+export const JobsList: React.FC<JobsListProps> = ({ jobs, onNavigate, onCancelJob }) => {
   const { t } = useTranslation();
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [search, setSearch] = useState('');
@@ -125,14 +126,26 @@ export const JobsList: React.FC<JobsListProps> = ({ jobs, onNavigate }) => {
                       </div>
                     </td>
                     <td className="py-4 px-4 text-xs text-slate-400">{job.assignedNodeId || t('jobs.queued')}</td>
-                    <td className="py-4 px-4 text-xs font-bold text-[#76B900]">{job.totalCost.toLocaleString('vi-VN')}₫</td>
+                    <td className="py-4 px-4 text-xs font-bold text-[#76B900]">
+                      {job.status === 'RUNNING' ? '⚡ Pay-As-You-Go' : `${job.totalCost.toLocaleString('vi-VN')}₫`}
+                    </td>
                     <td className="py-4 px-4 text-right">
-                      <button
-                        onClick={() => onNavigate(`/jobs/${job.id}`)}
-                        className="px-3 py-1.5 text-xs font-mono font-semibold bg-slate-800 hover:bg-[#76B900] hover:text-black text-slate-200 rounded transition"
-                      >
-                        {t('jobs.inspect_logs')}
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {job.status === 'RUNNING' && onCancelJob && (
+                          <button
+                            onClick={() => onCancelJob(job.id)}
+                            className="px-2.5 py-1 text-xs font-mono font-semibold bg-red-950/80 hover:bg-red-900 text-red-400 hover:text-white border border-red-800/80 rounded transition"
+                          >
+                            {t('jobs.stop_action')}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => onNavigate(`/jobs/${job.id}`)}
+                          className="px-3 py-1 text-xs font-mono font-semibold bg-slate-800 hover:bg-[#76B900] hover:text-black text-slate-200 rounded transition"
+                        >
+                          {t('jobs.inspect_logs')}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
