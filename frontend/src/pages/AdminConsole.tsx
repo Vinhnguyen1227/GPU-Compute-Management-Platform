@@ -1,6 +1,7 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { ShieldCheck, Server, Users, Activity, Sliders, AlertTriangle, Play, PauseCircle } from 'lucide-react';
-import { GPUNode, User } from '../types';
+import { GPUNode } from '../types';
 
 interface AdminConsoleProps {
   nodes: GPUNode[];
@@ -8,43 +9,42 @@ interface AdminConsoleProps {
 }
 
 export const AdminConsole: React.FC<AdminConsoleProps> = ({ nodes, onToggleNodeStatus }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
           <ShieldCheck className="w-6 h-6 text-[#76B900]" />
-          <span>Admin & Infrastructure Governance Console</span>
+          <span>{t('admin.title')}</span>
         </h1>
-        <p className="text-sm text-slate-400 mt-1">Node maintenance drain mode, Kafka consumer lag & global rate limits</p>
+        <p className="text-sm text-slate-400 mt-1">{t('admin.subtitle')}</p>
       </div>
 
-      {/* System Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
         <div className="glass-panel p-5 rounded-xl border border-slate-800">
-          <div className="text-xs text-slate-400 uppercase">Kafka Event Lag</div>
+          <div className="text-xs text-slate-400 uppercase">{t('admin.kafka_lag')}</div>
           <div className="text-2xl font-bold text-[#76B900] mt-1">0.04 ms</div>
           <div className="text-[11px] text-slate-500 mt-1">Topics: job.created, job.assigned</div>
         </div>
 
         <div className="glass-panel p-5 rounded-xl border border-slate-800">
-          <div className="text-xs text-slate-400 uppercase">API Rate Limit Budget</div>
+          <div className="text-xs text-slate-400 uppercase">{t('admin.rate_limit')}</div>
           <div className="text-2xl font-bold text-cyan-400 mt-1">10,000 req/min</div>
-          <div className="text-[11px] text-slate-500 mt-1">Managed by Gateway (.NET 9)</div>
+          <div className="text-[11px] text-slate-500 mt-1">{t('admin.managed_gateway')}</div>
         </div>
 
         <div className="glass-panel p-5 rounded-xl border border-slate-800">
-          <div className="text-xs text-slate-400 uppercase">Scheduler Memory Lock</div>
+          <div className="text-xs text-slate-400 uppercase">{t('admin.scheduler_lock')}</div>
           <div className="text-2xl font-bold text-purple-400 mt-1">Active (Redis)</div>
-          <div className="text-[11px] text-slate-500 mt-1">Prevents over-allocation</div>
+          <div className="text-[11px] text-slate-500 mt-1">{t('admin.prevents_over')}</div>
         </div>
       </div>
 
-      {/* Node Drain Operations */}
       <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
         <h2 className="text-lg font-bold text-white flex items-center gap-2">
           <Server className="w-5 h-5 text-[#76B900]" />
-          <span>Cluster Node Drainage & Maintenance Operations</span>
+          <span>{t('admin.node_drain')}</span>
         </h2>
 
         <div className="divide-y divide-slate-800/80 font-mono">
@@ -68,11 +68,11 @@ export const AdminConsole: React.FC<AdminConsoleProps> = ({ nodes, onToggleNodeS
               >
                 {node.status === 'MAINTENANCE' ? (
                   <>
-                    <Play className="w-3.5 h-3.5" /> Re-enable Node
+                    <Play className="w-3.5 h-3.5" /> {t('admin.re_enable')}
                   </>
                 ) : (
                   <>
-                    <PauseCircle className="w-3.5 h-3.5" /> Set Maintenance Drain
+                    <PauseCircle className="w-3.5 h-3.5" /> {t('admin.set_maintenance')}
                   </>
                 )}
               </button>

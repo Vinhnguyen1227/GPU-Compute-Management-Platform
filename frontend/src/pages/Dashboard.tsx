@@ -1,27 +1,7 @@
-import React from 'react';
-import { 
-  Cpu, 
-  Server, 
-  Activity, 
-  Zap, 
-  Clock, 
-  ArrowUpRight, 
-  CheckCircle2, 
-  XCircle, 
-  PlayCircle,
-  TrendingUp
-} from 'lucide-react';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar
-} from 'recharts';
+import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Activity, Cpu, Server, Clock, ArrowUpRight, Layers } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ClusterMetrics, TrainingJob, GPUNode } from '../types';
 
 interface DashboardProps {
@@ -31,102 +11,83 @@ interface DashboardProps {
   onNavigate: (path: string) => void;
 }
 
-const telemetryData = [
-  { time: '00:00', gpuUtil: 45, memoryGB: 120, jobs: 1 },
-  { time: '04:00', gpuUtil: 55, memoryGB: 180, jobs: 2 },
-  { time: '08:00', gpuUtil: 88, memoryGB: 340, jobs: 3 },
-  { time: '12:00', gpuUtil: 76, memoryGB: 290, jobs: 2 },
-  { time: '16:00', gpuUtil: 94, memoryGB: 410, jobs: 4 },
-  { time: '20:00', gpuUtil: 68, memoryGB: 240, jobs: 2 },
-];
-
 export const Dashboard: React.FC<DashboardProps> = ({ metrics, jobs, nodes, onNavigate }) => {
-  const activeJobs = jobs.filter(j => j.status === 'RUNNING');
+  const { t } = useTranslation();
+
+  const [telemetryData, setTelemetryData] = useState([
+    { time: '00:00', gpuUtil: 45 },
+    { time: '04:00', gpuUtil: 62 },
+    { time: '08:00', gpuUtil: 78 },
+    { time: '12:00', gpuUtil: 92 },
+    { time: '16:00', gpuUtil: 85 },
+    { time: '20:00', gpuUtil: 71 },
+    { time: 'Now', gpuUtil: metrics.avgGpuUtilization },
+  ]);
 
   return (
     <div className="space-y-6">
-      {/* Page Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-            <span>Cluster Overview</span>
-            <span className="text-xs bg-[#76B900]/20 text-[#76B900] px-2 py-0.5 rounded-full font-mono font-semibold border border-[#76B900]/30">
-              Live Stream
-            </span>
-          </h1>
-          <p className="text-sm text-slate-400 mt-1">Real-time GPU cluster telemetry, active workloads & job scheduler queue</p>
-        </div>
-        <button
-          onClick={() => onNavigate('/jobs/new')}
-          className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold text-sm flex items-center justify-center gap-2 hover:opacity-95 transition shadow-lg shadow-[#76B900]/20 cursor-pointer"
-        >
-          <Zap className="w-4 h-4" />
-          <span>Launch AI Workload</span>
-        </button>
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+          <Activity className="w-6 h-6 text-[#76B900]" />
+          <span>{t('dashboard.title')}</span>
+        </h1>
+        <p className="text-sm text-slate-400 mt-1">{t('dashboard.subtitle')}</p>
       </div>
 
-      {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="glass-panel rounded-xl p-5 border border-slate-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">Active Jobs</span>
-            <div className="w-8 h-8 rounded-lg bg-emerald-950/60 border border-emerald-800/50 flex items-center justify-center text-[#76B900]">
-              <PlayCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-3xl font-extrabold text-white font-mono">{metrics.activeJobs}</div>
-            <span className="text-xs text-emerald-400 font-mono flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> +1 queued
-            </span>
-          </div>
-          <div className="mt-2 text-xs text-slate-400">Processing on 6 GPU nodes</div>
-        </div>
-
-        <div className="glass-panel rounded-xl p-5 border border-slate-800">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">GPU Cluster Load</span>
+            <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">{t('dashboard.active_jobs')}</span>
             <div className="w-8 h-8 rounded-lg bg-cyan-950/60 border border-cyan-800/50 flex items-center justify-center text-cyan-400">
               <Cpu className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-3xl font-extrabold text-white font-mono">{metrics.avgGpuUtilization}%</div>
-            <span className="text-xs text-cyan-400 font-mono">10 / 16 GPUs</span>
-          </div>
-          <div className="mt-2 w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-gradient-to-r from-cyan-500 to-[#76B900] h-full" style={{ width: `${metrics.avgGpuUtilization}%` }} />
+            <div className="text-3xl font-extrabold text-white font-mono">{metrics.activeJobs}</div>
+            <span className="text-xs text-cyan-400 font-mono">{metrics.queuedJobs} {t('dashboard.queued')}</span>
           </div>
         </div>
 
         <div className="glass-panel rounded-xl p-5 border border-slate-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">Available Nodes</span>
-            <div className="w-8 h-8 rounded-lg bg-blue-950/60 border border-blue-800/50 flex items-center justify-center text-blue-400">
+            <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">{t('dashboard.gpu_available')}</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-950/60 border border-emerald-800/50 flex items-center justify-center text-[#76B900]">
               <Server className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
-            <div className="text-3xl font-extrabold text-white font-mono">{nodes.filter(n => n.status === 'AVAILABLE').length}</div>
-            <span className="text-xs text-slate-400 font-mono">of {nodes.length} Total Nodes</span>
-          </div>
-          <div className="mt-2 text-xs text-emerald-400 font-mono flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> Ready for allocation
+            <div className="text-3xl font-extrabold text-white font-mono">{metrics.availableGpus}</div>
+            <span className="text-xs text-[#76B900] font-mono">{t('dashboard.of_total', { total: metrics.totalGpus })}</span>
           </div>
         </div>
 
         <div className="glass-panel rounded-xl p-5 border border-slate-800">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">Total Compute Hours</span>
+            <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">{t('dashboard.avg_utilization')}</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-950/60 border border-amber-800/50 flex items-center justify-center text-amber-400">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <div className="text-3xl font-extrabold text-white font-mono">{metrics.avgGpuUtilization}%</div>
+            <span className="text-xs text-amber-400 font-mono">{t('dashboard.across_nodes')}</span>
+          </div>
+        </div>
+
+        <div className="glass-panel rounded-xl p-5 border border-slate-800">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider">{t('dashboard.compute_hours')}</span>
             <div className="w-8 h-8 rounded-lg bg-purple-950/60 border border-purple-800/50 flex items-center justify-center text-purple-400">
               <Clock className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-3 flex items-baseline justify-between">
             <div className="text-3xl font-extrabold text-white font-mono">{metrics.totalComputeHours} hrs</div>
-            <span className="text-xs text-purple-400 font-mono">This Month</span>
+            <span className="text-xs text-purple-400 font-mono">{t('dashboard.this_month')}</span>
           </div>
-          <div className="mt-2 text-xs text-slate-400">Billed via Usage Metering</div>
+          <div className="mt-2 text-xs text-slate-400">{t('dashboard.billed_usage')}</div>
         </div>
       </div>
 
@@ -135,11 +96,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ metrics, jobs, nodes, onNa
         <div className="lg:col-span-2 glass-panel rounded-xl p-5 border border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-bold text-white">Cluster Utilization Telemetry</h2>
-              <p className="text-xs text-slate-400 font-mono">Aggregate GPU % load and VRAM consumption</p>
+              <h2 className="text-base font-bold text-white">{t('dashboard.cluster_telemetry')}</h2>
+              <p className="text-xs text-slate-400 font-mono">{t('dashboard.telemetry_desc')}</p>
             </div>
             <span className="text-xs font-mono text-[#76B900] bg-[#76B900]/10 px-2 py-1 rounded border border-[#76B900]/20">
-              Prometheus Metrics
+              {t('dashboard.prometheus')}
             </span>
           </div>
           <div className="h-64">
@@ -157,7 +118,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ metrics, jobs, nodes, onNa
                 <Tooltip 
                   contentStyle={{ backgroundColor: '#0B0F17', borderColor: '#1E293B', borderRadius: '8px', color: '#fff' }}
                 />
-                <Area type="monotone" dataKey="gpuUtil" stroke="#76B900" strokeWidth={2} fillOpacity={1} fill="url(#gpuGrad)" name="GPU Utilization %" />
+                <Area type="monotone" dataKey="gpuUtil" stroke="#76B900" strokeWidth={2} fillOpacity={1} fill="url(#gpuGrad)" name={t('dashboard.gpu_utilization')} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -167,12 +128,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ metrics, jobs, nodes, onNa
         <div className="glass-panel rounded-xl p-5 border border-slate-800 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-bold text-white">GPU Node Status</h2>
+              <h2 className="text-base font-bold text-white">{t('dashboard.gpu_node_status')}</h2>
               <button 
                 onClick={() => onNavigate('/resources')}
                 className="text-xs text-[#76B900] hover:underline flex items-center gap-1 font-mono"
               >
-                View Nodes <ArrowUpRight className="w-3 h-3" />
+                {t('dashboard.view_nodes')} <ArrowUpRight className="w-3 h-3" />
               </button>
             </div>
             <div className="space-y-3">
@@ -205,14 +166,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ metrics, jobs, nodes, onNa
       <div className="glass-panel rounded-xl p-5 border border-slate-800">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-bold text-white">Active Training Jobs</h2>
-            <p className="text-xs text-slate-400 font-mono">Currently executing on simulated GPU nodes</p>
+            <h2 className="text-base font-bold text-white">{t('dashboard.active_training')}</h2>
+            <p className="text-xs text-slate-400 font-mono">{t('dashboard.active_training_desc')}</p>
           </div>
           <button
             onClick={() => onNavigate('/jobs')}
             className="text-xs text-slate-400 hover:text-white font-mono flex items-center gap-1"
           >
-            All Jobs ({jobs.length}) <ArrowUpRight className="w-3 h-3" />
+            {t('dashboard.all_jobs')} ({jobs.length}) <ArrowUpRight className="w-3 h-3" />
           </button>
         </div>
 
@@ -220,12 +181,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ metrics, jobs, nodes, onNa
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-800 text-[11px] font-mono text-slate-400 uppercase tracking-wider">
-                <th className="py-3 px-4">Job Name / ID</th>
-                <th className="py-3 px-4">Project</th>
-                <th className="py-3 px-4">GPU Type</th>
-                <th className="py-3 px-4">Progress</th>
-                <th className="py-3 px-4">Node</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4">{t('dashboard.job_name_id')}</th>
+                <th className="py-3 px-4">{t('dashboard.project')}</th>
+                <th className="py-3 px-4">{t('dashboard.gpu_type')}</th>
+                <th className="py-3 px-4">{t('dashboard.progress')}</th>
+                <th className="py-3 px-4">{t('dashboard.node')}</th>
+                <th className="py-3 px-4 text-right">{t('dashboard.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-sm">
@@ -250,14 +211,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ metrics, jobs, nodes, onNa
                     </div>
                   </td>
                   <td className="py-3.5 px-4 font-mono text-xs text-slate-400">
-                    {job.assignedNodeId || 'Queued...'}
+                    {job.assignedNodeId || t('jobs.queued')}
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <button
                       onClick={() => onNavigate(`/jobs/${job.id}`)}
                       className="px-3 py-1 text-xs font-mono font-semibold bg-slate-800 hover:bg-[#76B900] hover:text-black text-slate-200 rounded transition"
                     >
-                      Monitor Live Logs
+                      {t('dashboard.monitor_logs')}
                     </button>
                   </td>
                 </tr>

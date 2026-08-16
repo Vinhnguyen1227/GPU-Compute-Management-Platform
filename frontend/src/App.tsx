@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import './i18n';
 import { Shell } from './components/layout/Shell';
 import { Auth } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
@@ -70,17 +71,17 @@ export function App() {
     setJobs([newJob, ...jobs]);
     setCurrentUser(prev => prev ? { ...prev, balance: prev.balance - jobData.totalCost } : prev);
     
-    // Add usage transaction
+    // Add usage transaction (VND)
     const newTx: Transaction = {
       id: `tx-${1000 + transactions.length + 1}`,
       userId: currentUser.id,
       type: 'GPU_USAGE',
       amount: -jobData.totalCost,
-      currency: 'USD',
+      currency: 'VND',
       status: 'SUCCESS',
       paymentMethod: 'System',
       referenceCode: `BILL-${newId}`,
-      description: `GPU usage pre-authorization for ${jobData.name}`,
+      description: `Trừ phí GPU cho ${jobData.name}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
     setTransactions([newTx, ...transactions]);
@@ -96,11 +97,11 @@ export function App() {
       userId: currentUser.id,
       type: 'DEPOSIT',
       amount: amount,
-      currency: 'USD',
+      currency: 'VND',
       status: 'SUCCESS',
       paymentMethod: method,
       referenceCode: `${method.toUpperCase()}-${Date.now().toString().slice(-6)}`,
-      description: `Deposit via ${method} Gateway`,
+      description: `Nạp tiền qua ${method}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
     setTransactions([newTx, ...transactions]);

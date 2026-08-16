@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Server, Cpu, Flame, HardDrive, ShieldCheck, RefreshCw, CheckCircle2, AlertTriangle, Wrench } from 'lucide-react';
 import { GPUNode } from '../types';
 
@@ -7,23 +8,23 @@ interface ResourceClusterProps {
 }
 
 export const ResourceCluster: React.FC<ResourceClusterProps> = ({ nodes }) => {
+  const { t } = useTranslation();
+
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <Server className="w-6 h-6 text-[#76B900]" />
-            <span>GPU Infrastructure & Node Topology</span>
+            <span>{t('resources.title')}</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1">Resource Service management, distributed locks & hardware health telemetry</p>
+          <p className="text-sm text-slate-400 mt-1">{t('resources.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2 text-xs font-mono text-[#76B900] bg-emerald-950/60 px-3 py-1.5 rounded-lg border border-emerald-800">
-          <ShieldCheck className="w-4 h-4" /> Redis Distributed Lock Active
+          <ShieldCheck className="w-4 h-4" /> {t('resources.redis_lock')}
         </div>
       </div>
 
-      {/* Cluster Nodes Topology Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {nodes.map((node) => {
           const isBusy = node.status === 'BUSY';
@@ -55,12 +56,11 @@ export const ResourceCluster: React.FC<ResourceClusterProps> = ({ nodes }) => {
                 <h3 className="text-base font-extrabold text-white font-mono">{node.name}</h3>
                 <p className="text-xs text-slate-400 font-mono mt-1">{node.gpuModel}</p>
 
-                {/* Telemetry Progress Bars */}
                 <div className="mt-6 space-y-3 font-mono text-xs">
                   <div>
                     <div className="flex justify-between text-slate-400 mb-1">
                       <span className="flex items-center gap-1.5">
-                        <Cpu className="w-3.5 h-3.5 text-cyan-400" /> GPU Compute Load
+                        <Cpu className="w-3.5 h-3.5 text-cyan-400" /> {t('resources.gpu_load')}
                       </span>
                       <span className="text-cyan-400 font-bold">{node.gpuUtilPercent}%</span>
                     </div>
@@ -72,7 +72,7 @@ export const ResourceCluster: React.FC<ResourceClusterProps> = ({ nodes }) => {
                   <div>
                     <div className="flex justify-between text-slate-400 mb-1">
                       <span className="flex items-center gap-1.5">
-                        <HardDrive className="w-3.5 h-3.5 text-purple-400" /> VRAM Memory
+                        <HardDrive className="w-3.5 h-3.5 text-purple-400" /> {t('resources.vram')}
                       </span>
                       <span className="text-purple-400 font-bold">{node.usedMemoryGB} / {node.totalMemoryGB} GB</span>
                     </div>
@@ -84,7 +84,7 @@ export const ResourceCluster: React.FC<ResourceClusterProps> = ({ nodes }) => {
                   <div>
                     <div className="flex justify-between text-slate-400 mb-1">
                       <span className="flex items-center gap-1.5">
-                        <Flame className="w-3.5 h-3.5 text-amber-400" /> Core Temperature
+                        <Flame className="w-3.5 h-3.5 text-amber-400" /> {t('resources.temperature')}
                       </span>
                       <span className="text-amber-400 font-bold">{node.temperatureC} °C</span>
                     </div>
@@ -101,15 +101,15 @@ export const ResourceCluster: React.FC<ResourceClusterProps> = ({ nodes }) => {
               <div className="mt-6 pt-4 border-t border-slate-800/80 font-mono text-xs text-slate-400">
                 {isBusy ? (
                   <div className="text-cyan-400 truncate">
-                    Running: <span className="font-bold">{node.currentJobName}</span>
+                    {t('resources.running')} <span className="font-bold">{node.currentJobName}</span>
                   </div>
                 ) : isMaint ? (
                   <div className="text-amber-400 flex items-center gap-1">
-                    <Wrench className="w-3.5 h-3.5" /> Maintenance Drain Mode
+                    <Wrench className="w-3.5 h-3.5" /> {t('resources.maintenance')}
                   </div>
                 ) : (
                   <div className="text-emerald-400 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Unassigned & Ready
+                    <CheckCircle2 className="w-3.5 h-3.5" /> {t('resources.ready')}
                   </div>
                 )}
               </div>

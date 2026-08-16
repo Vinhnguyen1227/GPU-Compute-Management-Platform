@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cpu, PlayCircle, CheckCircle2, XCircle, Clock, Search, Filter, Plus } from 'lucide-react';
 import { TrainingJob, JobStatus } from '../types';
 
@@ -8,6 +9,7 @@ interface JobsListProps {
 }
 
 export const JobsList: React.FC<JobsListProps> = ({ jobs, onNavigate }) => {
+  const { t } = useTranslation();
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
@@ -24,16 +26,16 @@ export const JobsList: React.FC<JobsListProps> = ({ jobs, onNavigate }) => {
         <div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <Cpu className="w-6 h-6 text-[#76B900]" />
-            <span>Job Center & Queue Scheduler</span>
+            <span>{t('jobs.title')}</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1">Track state of AI training workloads, node assignment & execution logs</p>
+          <p className="text-sm text-slate-400 mt-1">{t('jobs.subtitle')}</p>
         </div>
         <button
           onClick={() => onNavigate('/jobs/new')}
           className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold text-sm flex items-center justify-center gap-2 hover:opacity-95 transition shadow-lg shadow-[#76B900]/20 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>Launch AI Workload</span>
+          <span>{t('jobs.launch')}</span>
         </button>
       </div>
 
@@ -45,7 +47,7 @@ export const JobsList: React.FC<JobsListProps> = ({ jobs, onNavigate }) => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search job by name or ID..."
+            placeholder={t('jobs.search_placeholder')}
             className="w-full pl-9 pr-4 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-[#76B900]"
           />
         </div>
@@ -74,20 +76,20 @@ export const JobsList: React.FC<JobsListProps> = ({ jobs, onNavigate }) => {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-800 text-[11px] font-mono text-slate-400 uppercase tracking-wider bg-slate-950/60">
-                <th className="py-3.5 px-4">Job Name & ID</th>
-                <th className="py-3.5 px-4">Project</th>
-                <th className="py-3.5 px-4">Hardware Allocated</th>
-                <th className="py-3.5 px-4">Status & Progress</th>
-                <th className="py-3.5 px-4">Node ID</th>
-                <th className="py-3.5 px-4">Total Cost</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4">{t('jobs.job_name_id')}</th>
+                <th className="py-3.5 px-4">{t('jobs.project')}</th>
+                <th className="py-3.5 px-4">{t('jobs.hardware')}</th>
+                <th className="py-3.5 px-4">{t('jobs.status_progress')}</th>
+                <th className="py-3.5 px-4">{t('jobs.node_id')}</th>
+                <th className="py-3.5 px-4">{t('jobs.total_cost')}</th>
+                <th className="py-3.5 px-4 text-right">{t('jobs.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/60 text-sm font-mono">
               {filteredJobs.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-12 text-center text-slate-500 text-sm">
-                    No jobs match the current filter criteria.
+                    {t('jobs.no_match')}
                   </td>
                 </tr>
               ) : (
@@ -122,14 +124,14 @@ export const JobsList: React.FC<JobsListProps> = ({ jobs, onNavigate }) => {
                         />
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-xs text-slate-400">{job.assignedNodeId || 'Queued...'}</td>
-                    <td className="py-4 px-4 text-xs font-bold text-[#76B900]">${job.totalCost.toFixed(2)}</td>
+                    <td className="py-4 px-4 text-xs text-slate-400">{job.assignedNodeId || t('jobs.queued')}</td>
+                    <td className="py-4 px-4 text-xs font-bold text-[#76B900]">{job.totalCost.toLocaleString('vi-VN')}₫</td>
                     <td className="py-4 px-4 text-right">
                       <button
                         onClick={() => onNavigate(`/jobs/${job.id}`)}
                         className="px-3 py-1.5 text-xs font-mono font-semibold bg-slate-800 hover:bg-[#76B900] hover:text-black text-slate-200 rounded transition"
                       >
-                        Inspect Logs
+                        {t('jobs.inspect_logs')}
                       </button>
                     </td>
                   </tr>

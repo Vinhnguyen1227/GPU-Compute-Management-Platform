@@ -1,17 +1,6 @@
 import React, { useState } from 'react';
-import { 
-  CreditCard, 
-  ArrowUpRight, 
-  History, 
-  ShieldCheck, 
-  Sparkles, 
-  QrCode, 
-  CheckCircle2, 
-  Copy, 
-  Check, 
-  Building2,
-  ExternalLink
-} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Wallet, ArrowDownToLine, ArrowUpRight, TrendingDown, History, QrCode, Copy, Check, AlertTriangle } from 'lucide-react';
 import { Transaction } from '../types';
 
 interface BillingWalletProps {
@@ -20,41 +9,29 @@ interface BillingWalletProps {
   onTopUp: (amount: number, method: 'VietQR' | 'VNPay' | 'MoMo') => void;
 }
 
-export const BillingWallet: React.FC<BillingWalletProps> = ({
-  balance,
-  transactions,
-  onTopUp,
-}) => {
+const MB_BANK_BIN = '970422';
+const MB_ACCOUNT_NO = '0932296788';
+const MB_ACCOUNT_NAME = 'HOANG ANH TUAN';
+
+const MIN_DEPOSIT = 50000;
+const MAX_DEPOSIT = 10000000;
+
+export const BillingWallet: React.FC<BillingWalletProps> = ({ balance, transactions, onTopUp }) => {
+  const { t } = useTranslation();
   const [showDepositModal, setShowDepositModal] = useState(false);
-  const [depositAmount, setDepositAmount] = useState<number>(4); // USD (100k VND)
+  const [depositAmount, setDepositAmount] = useState(100000);
   const [paymentGateway, setPaymentGateway] = useState<'VietQR' | 'VNPay' | 'MoMo'>('VietQR');
   const [showQR, setShowQR] = useState(false);
+  const [transferCode, setTransferCode] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
-  const [transferCode, setTransferCode] = useState<string>('o1wCm');
+  const [amountError, setAmountError] = useState('');
 
-  const MB_BANK_BIN = '970422';
-  const MB_ACCOUNT_NO = '0932296788';
-  const MB_ACCOUNT_NAME = 'HOANG ANH TUAN';
-  const VND_EXCHANGE_RATE = 25000;
-
-  const amountVnd = Math.round(depositAmount * VND_EXCHANGE_RATE);
-  const vietQrUrl = `https://img.vietqr.io/image/${MB_BANK_BIN}-${MB_ACCOUNT_NO}-compact2.png?amount=${amountVnd}&addInfo=${encodeURIComponent(transferCode)}&accountName=${encodeURIComponent(MB_ACCOUNT_NAME)}`;
-
-  const generateRandomCode = (len = 5) => {
-    const chars = 'abcdefghjkmnpqrstuvwxyz23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-    let res = '';
-    for (let i = 0; i < len; i++) {
-      res += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return res;
+  const generateTransferCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    return Array.from({ length: 5 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
   };
 
-  const handleDepositSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (depositAmount <= 0) return;
-    setTransferCode(generateRandomCode(5));
-    setShowQR(true);
-  };
+  const vietQrUrl = `https://img.vietqr.io/image/${MB_BANK_BIN}-${MB_ACCOUNT_NO}-compact2.png?amount=${depositAmount}&addInfo=${transferCode}&accountName=${encodeURIComponent(MB_ACCOUNT_NAME)}`;
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(transferCode);
@@ -62,142 +39,119 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const validateAmount = (amount: number) => {
+    if (amount < MIN_DEPOSIT || amount > MAX_DEPOSIT) {
+      setAmountError(t('billing.amount_error'));
+      return false;
+    }
+    setAmountError('');
+    return true;
+  };
+
+  const handleDepositSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateAmount(depositAmount)) return;
+    setTransferCode(generateTransferCode());
+    setShowQR(true);
+  };
+
   const handleConfirmPaid = () => {
     onTopUp(depositAmount, paymentGateway);
     setShowQR(false);
     setShowDepositModal(false);
+    setDepositAmount(100000);
   };
 
+  const totalDeposited = transactions
+    .filter(tx => tx.type === 'DEPOSIT' && tx.status === 'SUCCESS')
+    .reduce((sum, tx) => sum + tx.amount, 0);
+
+  const totalSpent = transactions
+    .filter(tx => tx.type === 'GPU_USAGE' && tx.status === 'SUCCESS')
+    .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+
+  const presets = [
+    { vnd: 50000, label: '50K' },
+    { vnd: 100000, label: '100K' },
+    { vnd: 500000, label: '500K' },
+    { vnd: 1000000, label: '1M' },
+    { vnd: 5000000, label: '5M' },
+    { vnd: 10000000, label: '10M' },
+  ];
+
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-          <span>Billing, Wallets & Financial Ledger</span>
-          <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-[#76B900]/20 text-[#76B900] rounded-full border border-[#76B900]/40">
-            PAYOS & VIETQR VERIFIED
-          </span>
-        </h1>
-        <p className="text-sm text-slate-400 mt-1">
-          Real-time prepaid balance, automated GPU compute metering, and instant VietQR top-ups via MB Bank.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            <Wallet className="w-6 h-6 text-[#76B900]" />
+            <span>{t('billing.title')}</span>
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">{t('billing.subtitle')}</p>
+        </div>
+        <button
+          onClick={() => setShowDepositModal(true)}
+          className="px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold text-sm flex items-center gap-2 hover:opacity-95 transition shadow-lg shadow-[#76B900]/20"
+        >
+          <ArrowDownToLine className="w-4 h-4" />
+          <span>{t('common.top_up')}</span>
+        </button>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Wallet Balance Card */}
-        <div className="glass-panel rounded-2xl border border-slate-800 p-6 relative overflow-hidden bg-gradient-to-br from-slate-900/90 to-slate-950/80">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <div className="text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
-                Current Compute Balance
-              </div>
-              <div className="text-3xl font-black font-mono text-white mt-1">
-                ${balance.toFixed(2)}{' '}
-                <span className="text-xs text-slate-500 font-normal">USD</span>
-              </div>
-              <div className="text-xs font-mono text-[#76B900] mt-0.5">
-                ≈ {(balance * VND_EXCHANGE_RATE).toLocaleString('vi-VN')} VND
-              </div>
-            </div>
-            <div className="p-3 bg-[#76B900]/10 rounded-xl border border-[#76B900]/30 text-[#76B900]">
-              <CreditCard className="w-6 h-6" />
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              setShowQR(false);
-              setShowDepositModal(true);
-            }}
-            className="w-full mt-2 py-2.5 px-4 rounded-xl bg-[#76B900] hover:bg-emerald-400 text-black font-extrabold text-xs font-mono tracking-wide transition flex items-center justify-center gap-2 shadow-lg shadow-[#76B900]/20"
-          >
-            <ArrowUpRight className="w-4 h-4 stroke-[3]" />
-            <span>Top Up Balance (VietQR / MB Bank)</span>
-          </button>
+      {/* Wallet Balance Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="glass-panel p-6 rounded-xl border border-slate-800">
+          <div className="text-xs font-mono text-slate-400 uppercase tracking-wider">{t('billing.current_balance')}</div>
+          <div className="mt-2 text-3xl font-extrabold text-[#76B900] font-mono">{balance.toLocaleString('vi-VN')}₫</div>
         </div>
-
-        {/* MB Bank Account Details */}
-        <div className="glass-panel rounded-2xl border border-slate-800 p-6 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-400 uppercase">
-            <Building2 className="w-4 h-4 text-cyan-400" />
-            <span>Official Receiving Account</span>
-          </div>
-          <div className="space-y-1.5 font-mono text-xs">
-            <div className="flex justify-between text-slate-400">
-              <span>Bank:</span>
-              <span className="text-white font-bold">MB Bank (Quân Đội)</span>
-            </div>
-            <div className="flex justify-between text-slate-400">
-              <span>Account Number:</span>
-              <span className="text-cyan-400 font-bold">{MB_ACCOUNT_NO}</span>
-            </div>
-            <div className="flex justify-between text-slate-400">
-              <span>Account Holder:</span>
-              <span className="text-white font-bold">{MB_ACCOUNT_NAME}</span>
-            </div>
-            <div className="flex justify-between text-slate-400">
-              <span>Gateway:</span>
-              <span className="text-[#76B900] font-bold">PayOS Webhook (Auto 3s)</span>
-            </div>
-          </div>
+        <div className="glass-panel p-6 rounded-xl border border-slate-800">
+          <div className="text-xs font-mono text-slate-400 uppercase tracking-wider">{t('billing.total_deposited')}</div>
+          <div className="mt-2 text-3xl font-extrabold text-emerald-400 font-mono">+{totalDeposited.toLocaleString('vi-VN')}₫</div>
         </div>
-
-        {/* Security & Idempotency Card */}
-        <div className="glass-panel rounded-2xl border border-slate-800 p-6 space-y-3">
-          <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-400 uppercase">
-            <ShieldCheck className="w-4 h-4 text-[#76B900]" />
-            <span>Automated Webhook Matching</span>
-          </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Every deposit generates a unique transfer code (e.g. <span className="text-white font-mono font-bold">o1wCm</span>). When your banking app transfers money with that note, PayOS webhook instantly credits your wallet.
-          </p>
+        <div className="glass-panel p-6 rounded-xl border border-slate-800">
+          <div className="text-xs font-mono text-slate-400 uppercase tracking-wider">{t('billing.compute_spent')}</div>
+          <div className="mt-2 text-3xl font-extrabold text-red-400 font-mono">-{totalSpent.toLocaleString('vi-VN')}₫</div>
         </div>
       </div>
 
-      {/* Transaction History Ledger */}
-      <div className="glass-panel rounded-2xl border border-slate-800 p-6 space-y-4">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <History className="w-5 h-5 text-[#76B900]" />
-          <span>Billing Ledger & Transaction Logs</span>
-        </h2>
-
+      {/* Transaction History */}
+      <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-800 flex items-center gap-2">
+          <History className="w-4 h-4 text-[#76B900]" />
+          <h2 className="text-base font-bold text-white">{t('billing.transaction_history')}</h2>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-mono">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-800 text-[11px] text-slate-400 uppercase tracking-wider bg-slate-950/60">
-                <th className="py-3 px-4">Tx ID & Ref</th>
-                <th className="py-3 px-4">Type</th>
-                <th className="py-3 px-4">Description</th>
-                <th className="py-3 px-4">Gateway</th>
-                <th className="py-3 px-4">Timestamp</th>
-                <th className="py-3 px-4 text-right">Amount</th>
+              <tr className="border-b border-slate-800 text-[11px] font-mono text-slate-400 uppercase tracking-wider bg-slate-950/60">
+                <th className="py-3 px-4">{t('billing.type')}</th>
+                <th className="py-3 px-4">{t('billing.amount')}</th>
+                <th className="py-3 px-4">{t('billing.method')}</th>
+                <th className="py-3 px-4">{t('billing.reference')}</th>
+                <th className="py-3 px-4">{t('billing.description')}</th>
+                <th className="py-3 px-4">{t('billing.date')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 text-sm">
+            <tbody className="divide-y divide-slate-800/60 text-sm font-mono">
               {transactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-slate-900/40 transition">
-                  <td className="py-3.5 px-4 font-bold text-slate-200">
-                    <div>{tx.id}</div>
-                    <div className="text-[10px] text-slate-500 font-normal">{tx.referenceCode}</div>
-                  </td>
-                  <td className="py-3.5 px-4">
+                  <td className="py-3 px-4">
                     <span className={`px-2 py-0.5 text-[10px] rounded font-semibold ${
                       tx.type === 'DEPOSIT' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' :
                       tx.type === 'GPU_USAGE' ? 'bg-cyan-950 text-cyan-400 border border-cyan-800' :
                       'bg-purple-950 text-purple-400 border border-purple-800'
                     }`}>
-                      {tx.type}
+                      {tx.type === 'DEPOSIT' ? t('billing.deposit') : tx.type === 'GPU_USAGE' ? t('billing.gpu_usage') : t('billing.refund')}
                     </span>
                   </td>
-                  <td className="py-3.5 px-4 text-slate-300 text-xs font-sans">{tx.description}</td>
-                  <td className="py-3.5 px-4 text-xs text-slate-400">{tx.paymentMethod || 'System'}</td>
-                  <td className="py-3.5 px-4 text-xs text-slate-500">{tx.timestamp}</td>
-                  <td className={`py-3.5 px-4 text-right font-bold ${
-                    tx.amount > 0 ? 'text-[#76B900]' : 'text-slate-300'
-                  }`}>
-                    {tx.amount > 0 ? `+${tx.amount.toFixed(2)}` : tx.amount.toFixed(2)} USD
+                  <td className={`py-3 px-4 font-bold ${tx.amount >= 0 ? 'text-[#76B900]' : 'text-red-400'}`}>
+                    {tx.amount >= 0 ? '+' : ''}{tx.amount.toLocaleString('vi-VN')}₫
                   </td>
+                  <td className="py-3 px-4 text-xs text-slate-400">{tx.paymentMethod}</td>
+                  <td className="py-3 px-4 text-xs text-slate-500">{tx.referenceCode}</td>
+                  <td className="py-3 px-4 text-xs text-slate-300 font-sans">{tx.description}</td>
+                  <td className="py-3 px-4 text-xs text-slate-400">{tx.timestamp}</td>
                 </tr>
               ))}
             </tbody>
@@ -205,22 +159,22 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
         </div>
       </div>
 
-      {/* Deposit Modal with Real VietQR & PayOS */}
+      {/* Deposit Modal */}
       {showDepositModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="glass-panel w-full max-w-lg rounded-2xl p-6 border border-slate-800 shadow-2xl relative">
             <h2 className="text-lg font-bold text-white mb-1 flex items-center justify-between">
-              <span>Deposit Funds to GPU Wallet</span>
-              <span className="text-xs font-mono text-[#76B900] font-normal">MB Bank • VietQR</span>
+              <span>{t('billing.deposit_funds')}</span>
+              <span className="text-xs font-mono text-[#76B900] font-normal">{t('billing.mb_vietqr')}</span>
             </h2>
             <p className="text-xs text-slate-400 mb-4 font-mono">
-              Scan QR with any Banking App (MB Bank, Vietcombank, Techcombank, MoMo)
+              {t('billing.scan_qr')}
             </p>
 
             {!showQR ? (
               <form onSubmit={handleDepositSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">Select Gateway</label>
+                  <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">{t('billing.select_gateway')}</label>
                   <div className="grid grid-cols-3 gap-2">
                     {(['VietQR', 'VNPay', 'MoMo'] as const).map(gw => (
                       <button
@@ -240,26 +194,21 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">Select Top-Up Amount</label>
-                  <div className="grid grid-cols-4 gap-2 mb-2">
-                    {[
-                      { usd: 4, vnd: '100k' },
-                      { usd: 10, vnd: '250k' },
-                      { usd: 20, vnd: '500k' },
-                      { usd: 40, vnd: '1M' }
-                    ].map(item => (
+                  <label className="block text-xs font-mono font-semibold text-slate-300 mb-1">{t('billing.select_amount')}</label>
+                  <p className="text-[10px] text-slate-500 font-mono mb-2">{t('billing.min_max')}</p>
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    {presets.map(item => (
                       <button
-                        key={item.usd}
+                        key={item.vnd}
                         type="button"
-                        onClick={() => setDepositAmount(item.usd)}
-                        className={`py-2 text-xs font-mono rounded border text-center transition ${
-                          depositAmount === item.usd
+                        onClick={() => { setDepositAmount(item.vnd); setAmountError(''); }}
+                        className={`py-2.5 text-xs font-mono rounded border text-center transition ${
+                          depositAmount === item.vnd
                             ? 'bg-emerald-950 border-[#76B900] text-[#76B900] font-bold'
                             : 'bg-slate-900 border-slate-800 text-slate-400'
                         }`}
                       >
-                        <div>${item.usd} USD</div>
-                        <div className="text-[10px] text-slate-500">{item.vnd} VND</div>
+                        {item.label} VND
                       </button>
                     ))}
                   </div>
@@ -268,13 +217,21 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
                     <input
                       type="number"
                       value={depositAmount}
-                      onChange={(e) => setDepositAmount(Number(e.target.value))}
+                      onChange={(e) => { setDepositAmount(Number(e.target.value)); setAmountError(''); }}
+                      min={MIN_DEPOSIT}
+                      max={MAX_DEPOSIT}
+                      step={10000}
                       className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm font-mono text-white focus:border-[#76B900] focus:outline-none"
                     />
                     <div className="absolute right-3 top-2.5 text-xs font-mono text-slate-500">
-                      ≈ {(depositAmount * VND_EXCHANGE_RATE).toLocaleString('vi-VN')} VND
+                      {depositAmount.toLocaleString('vi-VN')}₫
                     </div>
                   </div>
+                  {amountError && (
+                    <p className="text-xs text-red-400 font-mono mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> {amountError}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-3 mt-6">
@@ -283,13 +240,13 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
                     onClick={() => setShowDepositModal(false)}
                     className="px-4 py-2 text-xs font-mono text-slate-400 hover:text-white"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="submit"
                     className="px-5 py-2.5 rounded-lg bg-[#76B900] text-black font-extrabold text-xs font-mono hover:bg-emerald-400 transition shadow-lg shadow-[#76B900]/20"
                   >
-                    Generate {paymentGateway} QR (${depositAmount} / {amountVnd.toLocaleString('vi-VN')} VND)
+                    {t('billing.generate_qr', { gateway: paymentGateway })} ({depositAmount.toLocaleString('vi-VN')}₫)
                   </button>
                 </div>
               </form>
@@ -308,14 +265,14 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
                   {/* Transfer Note Code Info */}
                   <div className="w-full bg-slate-900/90 p-3 rounded-lg border border-slate-800 space-y-2 font-mono text-xs">
                     <div className="flex justify-between items-center text-slate-400">
-                      <span>Exact Amount:</span>
+                      <span>{t('billing.exact_amount')}</span>
                       <span className="text-[#76B900] font-bold text-sm">
-                        {amountVnd.toLocaleString('vi-VN')} VND (${depositAmount} USD)
+                        {depositAmount.toLocaleString('vi-VN')}₫
                       </span>
                     </div>
 
                     <div className="flex justify-between items-center text-slate-400">
-                      <span>Transfer Message (Nội dung CK):</span>
+                      <span>{t('billing.transfer_message')}</span>
                       <div className="flex items-center gap-1.5">
                         <span className="px-2 py-0.5 bg-emerald-950 text-[#76B900] border border-[#76B900]/50 rounded font-bold text-sm tracking-wider">
                           {transferCode}
@@ -324,7 +281,7 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
                           type="button"
                           onClick={handleCopyCode}
                           className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
-                          title="Copy Transfer Code"
+                          title="Copy"
                         >
                           {copiedCode ? <Check className="w-3.5 h-3.5 text-[#76B900]" /> : <Copy className="w-3.5 h-3.5" />}
                         </button>
@@ -333,13 +290,13 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
 
                     <div className="flex justify-between items-center text-slate-400 text-[11px] pt-1 border-t border-slate-800">
                       <span>MB Bank: <span className="text-slate-200 font-bold">{MB_ACCOUNT_NO}</span></span>
-                      <span>Owner: <span className="text-slate-200 font-bold">{MB_ACCOUNT_NAME}</span></span>
+                      <span>CTK: <span className="text-slate-200 font-bold">{MB_ACCOUNT_NAME}</span></span>
                     </div>
                   </div>
                 </div>
 
                 <div className="text-[11px] font-mono text-slate-400 text-center">
-                  💡 Scanning the QR with your banking app will automatically set the amount to <span className="text-white font-bold">{amountVnd.toLocaleString('vi-VN')} VND</span> and the message to <span className="text-[#76B900] font-bold">{transferCode}</span>.
+                  {t('billing.scanning_note')}
                 </div>
 
                 <div className="flex gap-2">
@@ -347,13 +304,13 @@ export const BillingWallet: React.FC<BillingWalletProps> = ({
                     onClick={() => setShowQR(false)}
                     className="w-1/3 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-xs transition"
                   >
-                    Back
+                    {t('common.back')}
                   </button>
                   <button
                     onClick={handleConfirmPaid}
                     className="w-2/3 py-2.5 rounded-lg bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold font-mono text-xs hover:opacity-95 transition shadow-lg shadow-[#76B900]/20"
                   >
-                    Simulate Payment Callback (+${depositAmount})
+                    {t('billing.confirm_paid')} (+{depositAmount.toLocaleString('vi-VN')}₫)
                   </button>
                 </div>
               </div>

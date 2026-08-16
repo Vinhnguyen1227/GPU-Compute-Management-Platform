@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FolderKanban, Plus, Database, Cpu, Calendar, ArrowRight, Layers } from 'lucide-react';
 import { Project } from '../types';
 
@@ -9,6 +10,7 @@ interface ProjectsProps {
 }
 
 export const Projects: React.FC<ProjectsProps> = ({ projects, onSelectProject, onCreateProject }) => {
+  const { t } = useTranslation();
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -32,25 +34,23 @@ export const Projects: React.FC<ProjectsProps> = ({ projects, onSelectProject, o
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
             <FolderKanban className="w-6 h-6 text-[#76B900]" />
-            <span>AI Projects Workspace</span>
+            <span>{t('projects.title')}</span>
           </h1>
-          <p className="text-sm text-slate-400 mt-1">Organize training datasets, AI models, and GPU job runs</p>
+          <p className="text-sm text-slate-400 mt-1">{t('projects.subtitle')}</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
           className="px-4 py-2.5 rounded-lg bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold text-sm flex items-center justify-center gap-2 hover:opacity-95 transition shadow-lg shadow-[#76B900]/20 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>New AI Project</span>
+          <span>{t('projects.create')}</span>
         </button>
       </div>
 
-      {/* Projects Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects.map((p) => (
           <div
@@ -78,18 +78,18 @@ export const Projects: React.FC<ProjectsProps> = ({ projects, onSelectProject, o
             <div className="mt-6 pt-4 border-t border-slate-800/80 space-y-2 text-xs font-mono">
               <div className="flex items-center justify-between text-slate-400">
                 <span className="flex items-center gap-1.5">
-                  <Database className="w-3.5 h-3.5 text-cyan-400" /> Dataset
+                  <Database className="w-3.5 h-3.5 text-cyan-400" /> {t('projects.dataset')}
                 </span>
                 <span className="text-slate-200 truncate max-w-[140px]">{p.datasetName} ({p.datasetSize})</span>
               </div>
               <div className="flex items-center justify-between text-slate-400">
                 <span className="flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-[#76B900]" /> Job Executions
+                  <Cpu className="w-3.5 h-3.5 text-[#76B900]" /> {t('projects.job_executions')}
                 </span>
-                <span className="text-[#76B900] font-bold">{p.jobCount} runs</span>
+                <span className="text-[#76B900] font-bold">{p.jobCount} {t('projects.runs')}</span>
               </div>
               <div className="pt-2 flex items-center justify-end text-xs text-[#76B900] font-semibold group-hover:translate-x-1 transition-transform">
-                Open Workspace <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                {t('projects.open_workspace')} <ArrowRight className="w-3.5 h-3.5 ml-1" />
               </div>
             </div>
           </div>
@@ -100,26 +100,26 @@ export const Projects: React.FC<ProjectsProps> = ({ projects, onSelectProject, o
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="glass-panel w-full max-w-lg rounded-2xl p-6 border border-slate-800 shadow-2xl relative">
-            <h2 className="text-lg font-bold text-white mb-4">Create New AI Project</h2>
+            <h2 className="text-lg font-bold text-white mb-4">{t('projects.create_title')}</h2>
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Project Name</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1">{t('projects.project_name')}</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Llama-3 Fine-Tuning"
+                  placeholder={t('projects.project_name_placeholder')}
                   required
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-200 focus:border-[#76B900] focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">Description</label>
+                <label className="block text-xs font-medium text-slate-400 mb-1">{t('projects.description_label')}</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Details regarding model architecture, training goals..."
+                  placeholder={t('projects.description_placeholder')}
                   rows={3}
                   className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm text-slate-200 focus:border-[#76B900] focus:outline-none"
                 />
@@ -127,7 +127,7 @@ export const Projects: React.FC<ProjectsProps> = ({ projects, onSelectProject, o
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Dataset Name</label>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">{t('projects.dataset_name')}</label>
                   <input
                     type="text"
                     value={datasetName}
@@ -137,7 +137,7 @@ export const Projects: React.FC<ProjectsProps> = ({ projects, onSelectProject, o
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-slate-400 mb-1">Est. Size</label>
+                  <label className="block text-xs font-medium text-slate-400 mb-1">{t('projects.est_size')}</label>
                   <input
                     type="text"
                     value={datasetSize}
@@ -154,13 +154,13 @@ export const Projects: React.FC<ProjectsProps> = ({ projects, onSelectProject, o
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 text-xs font-mono text-slate-400 hover:text-slate-200"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 rounded-lg bg-[#76B900] text-black font-extrabold text-xs hover:bg-emerald-400 transition"
                 >
-                  Create Project
+                  {t('projects.create_project')}
                 </button>
               </div>
             </form>

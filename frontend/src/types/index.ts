@@ -10,7 +10,7 @@ export interface User {
   email: string;
   role: Role;
   avatarUrl: string;
-  balance: number; // in USD
+  balance: number; // in VND
   currency: string;
 }
 
@@ -35,8 +35,8 @@ export interface TrainingJob {
   status: JobStatus;
   progress: number; // 0 - 100
   durationHours: number;
-  costPerHour: number;
-  totalCost: number;
+  costPerHour: number; // VND per hour
+  totalCost: number; // VND
   assignedNodeId?: string;
   createdAt: string;
   startedAt?: string;
@@ -63,7 +63,7 @@ export interface Transaction {
   id: string;
   userId: string;
   type: 'DEPOSIT' | 'GPU_USAGE' | 'REFUND';
-  amount: number;
+  amount: number; // VND
   currency: string;
   status: 'PENDING' | 'SUCCESS' | 'FAILED';
   paymentMethod?: 'VietQR' | 'VNPay' | 'MoMo' | 'System';

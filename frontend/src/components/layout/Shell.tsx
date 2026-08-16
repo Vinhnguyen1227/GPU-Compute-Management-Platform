@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   LayoutDashboard, 
   FolderKanban, 
@@ -12,7 +13,8 @@ import {
   Bell, 
   Search,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Globe
 } from 'lucide-react';
 import { User } from '../../types';
 
@@ -24,18 +26,25 @@ interface ShellProps {
 }
 
 export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, children }) => {
+  const { t, i18n } = useTranslation();
+
   const navItems = [
-    { path: '/dashboard', label: 'Cluster Overview', icon: LayoutDashboard },
-    { path: '/projects', label: 'Projects', icon: FolderKanban },
-    { path: '/jobs/new', label: 'Submit Job', icon: PlusCircle, highlight: true },
-    { path: '/jobs', label: 'Jobs & Queue', icon: Cpu, badge: '2 Active' },
-    { path: '/resources', label: 'GPU Cluster Nodes', icon: Server },
-    { path: '/billing', label: 'Wallet & Billing', icon: Wallet },
+    { path: '/dashboard', label: t('nav.cluster_overview'), icon: LayoutDashboard },
+    { path: '/projects', label: t('nav.projects'), icon: FolderKanban },
+    { path: '/jobs/new', label: t('nav.submit_job'), icon: PlusCircle, highlight: true },
+    { path: '/jobs', label: t('nav.jobs_queue'), icon: Cpu, badge: `2 ${t('common.active')}` },
+    { path: '/resources', label: t('nav.gpu_cluster_nodes'), icon: Server },
+    { path: '/billing', label: t('nav.wallet_billing'), icon: Wallet },
   ];
 
   if (user.role === 'ADMIN' || user.role === 'ENGINEER') {
-    navItems.push({ path: '/admin', label: 'Admin Console', icon: ShieldCheck });
+    navItems.push({ path: '/admin', label: t('nav.admin_console'), icon: ShieldCheck });
   }
+
+  const switchLang = (lang: string) => {
+    i18n.changeLanguage(lang);
+    localStorage.setItem('lang', lang);
+  };
 
   return (
     <div className="flex h-screen bg-[#0B0F17] overflow-hidden">
@@ -58,7 +67,7 @@ export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, chi
         {/* Navigation Links */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <div className="px-3 pb-2 text-[10px] font-mono font-semibold uppercase text-slate-500 tracking-wider">
-            Compute Platform
+            {t('nav.compute_platform')}
           </div>
 
           {navItems.map((item) => {
@@ -99,9 +108,9 @@ export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, chi
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#76B900] opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-[#76B900]"></span>
               </span>
-              Kafka Event Cluster
+              {t('nav.kafka_cluster')}
             </span>
-            <span className="text-[#76B900] font-mono">OPERATIONAL</span>
+            <span className="text-[#76B900] font-mono">{t('nav.operational')}</span>
           </div>
           <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
             <div className="bg-gradient-to-r from-[#76B900] to-emerald-400 h-full w-[94%]" />
@@ -118,7 +127,7 @@ export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, chi
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
               type="text"
-              placeholder="Search jobs, projects, GPU nodes..."
+              placeholder={t('common.search_placeholder')}
               className="w-full pl-9 pr-4 py-1.5 bg-slate-900/80 border border-slate-800 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#76B900]/60 focus:ring-1 focus:ring-[#76B900]/40 transition"
             />
           </div>
@@ -132,13 +141,37 @@ export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, chi
             >
               <Wallet className="w-4 h-4 text-[#76B900]" />
               <div className="text-left font-mono">
-                <div className="text-[10px] text-slate-400 uppercase tracking-wider leading-none">Wallet Balance</div>
-                <div className="text-xs font-bold text-[#76B900]">${user.balance.toFixed(2)} USD</div>
+                <div className="text-[10px] text-slate-400 uppercase tracking-wider leading-none">{t('common.wallet_balance')}</div>
+                <div className="text-xs font-bold text-[#76B900]">{user.balance.toLocaleString('vi-VN')}₫</div>
               </div>
               <span className="ml-1 text-[10px] bg-[#76B900] text-black px-1.5 py-0.5 rounded font-semibold hover:bg-emerald-400">
-                + Top Up
+                {t('common.top_up')}
               </span>
             </button>
+
+            {/* Language Switcher */}
+            <div className="flex items-center bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+              <button
+                onClick={() => switchLang('vi')}
+                className={`px-2.5 py-1.5 text-xs font-bold transition ${
+                  i18n.language === 'vi' || i18n.language.startsWith('vi')
+                    ? 'bg-[#76B900] text-black'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                VI
+              </button>
+              <button
+                onClick={() => switchLang('en')}
+                className={`px-2.5 py-1.5 text-xs font-bold transition ${
+                  i18n.language === 'en' || i18n.language.startsWith('en')
+                    ? 'bg-[#76B900] text-black'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                EN
+              </button>
+            </div>
 
             {/* Notifications */}
             <button className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 rounded-lg transition relative">
@@ -155,11 +188,11 @@ export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, chi
               />
               <div className="text-left hidden sm:block">
                 <div className="text-xs font-semibold text-slate-200 leading-tight">{user.name}</div>
-                <div className="text-[10px] text-[#76B900] font-mono">{user.role} ACCESS</div>
+                <div className="text-[10px] text-[#76B900] font-mono">{user.role} {t('common.access')}</div>
               </div>
               <button 
                 onClick={() => onNavigate('/login')}
-                title="Sign Out"
+                title={t('common.sign_out')}
                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition"
               >
                 <LogOut className="w-4 h-4" />
