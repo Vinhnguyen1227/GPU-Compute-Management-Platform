@@ -1,24 +1,20 @@
 # Active Context
 
 ## Current Status
-- Finished Phase 3 — Project + Job + Resource Services implementation.
-- Solution builds cleanly (`dotnet build backend/AIComputePlatform.sln` -> 0 errors, 0 warnings across all 9 projects).
+- Finished Phase 1 through Phase 5 backend microservices implementation.
+- Automated Test Suite built and verified (9 passed, 0 failed, 100% test run pass rate).
+- Full solution compiles with 0 errors (`dotnet build backend/AIComputePlatform.sln`).
 
 ## Key Accomplishments
-- **ProjectService**:
-  - Implemented `Project` model & `ProjectDbContext`.
-  - Built `IProjectService` / `ProjectServiceImplementation` for project CRUD filtered by JWT user ID (`sub`).
-  - Added internal endpoint `POST /api/projects/internal/{id}/increment-job-count` for `JobService` integration.
-  - Built `ProjectsController` and configured JWT Bearer authentication in `Program.cs`.
-- **JobService**:
-  - Implemented `TrainingJob` model & `JobDbContext`.
-  - Built `JobEventProducer` to publish `job.created` Kafka events on job submission.
-  - Built `JobAssignedConsumer` (BackgroundService) to process `job.assigned` events and transition jobs to `RUNNING` status with assigned node ID.
-  - Built `IJobService` / `JobServiceImplementation` and `JobsController` (including SSE streaming placeholder endpoint `/api/jobs/{id}/logs`).
-- **ResourceService**:
-  - Implemented `GpuNode` model & `ResourceDbContext`.
-  - Built `SchedulerService` using atomic PostgreSQL row locking (`SELECT ... FOR UPDATE SKIP LOCKED`) for GPU allocation.
-  - Built `JobCreatedConsumer` (BackgroundService) listening on `job.created` -> invokes `SchedulerService` -> assigns GPU node -> publishes `job.assigned` Kafka event.
-  - Built `GpuNodesController` and `ClusterMetricsController`.
-- **ApiGateway**:
-  - Verified routing for `/api/projects/*`, `/api/jobs/*`, `/api/gpu-nodes/*`, and `/api/cluster/*`.
+- **Phase 1 Infrastructure**: 6 PostgreSQL DBs, Redis 7, Kafka 3.7 event bus, Shared library, Ocelot Gateway routes.
+- **Phase 2 Auth & User**: JWT RS256, Refresh tokens (30d), Redis token blacklist for logout, User profile CRUD.
+- **Phase 3 Core Services**: ProjectService, JobService (`job.created` event), ResourceService (`SELECT FOR UPDATE SKIP LOCKED` scheduler & `job.assigned` event).
+- **Phase 4 Job Lifecycle & SSE**: WorkerService (`GpuSimulator` & `GpuJobWorker`), real-time SSE log streaming (`/api/jobs/{id}/logs`), Kafka progress/completed/failed events.
+- **Phase 5 Payment & Billing**: PaymentService double-entry ledger, VietQR & VNPay sandbox payment gateway, Webhook idempotency, automated wallet deduction on `job.completed` and refunds on `job.failed`.
+- **Automated Test Suite**:
+  - Scaffolded 4 test projects (`AuthService.Tests`, `JobService.Tests`, `ResourceService.Tests`, `PaymentService.Tests`).
+  - Added Coverlet code coverage collection.
+  - Test run output: 9 passed, 0 failed.
+
+## Next Steps
+- Phase 6 — Production Hardening & Observability (Prometheus, Grafana, OpenTelemetry, Health checks).

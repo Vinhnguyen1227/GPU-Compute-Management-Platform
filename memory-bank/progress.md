@@ -25,7 +25,10 @@
   - JobService SSE Log Broadcaster and 4 Kafka Consumers (`job.assigned`, `job.progress`, `job.completed`, `job.failed`)
 - [x] **Phase 5 Complete**: Payment, Wallet & Billing Engine implemented
   - PaymentService (Wallets, Double-Entry Ledger, PayOS / VietQR / VNPay Gateway, Webhook Idempotency, Billing Engine)
-  - Full solution build verified (`dotnet build backend/AIComputePlatform.sln` -> 0 errors, 0 warnings)
+  - [x] **Backend Automated Test Suite Complete**:
+  - Scaffolded 4 test projects (`AuthService.Tests`, `JobService.Tests`, `ResourceService.Tests`, `PaymentService.Tests`)
+  - Configured Coverlet code coverage collection
+  - Executed `dotnet test backend/AIComputePlatform.sln` -> 9 passed, 0 failed
 
 ## Status Summary
 - Phase 1 Foundation & Infrastructure complete.
@@ -33,4 +36,6 @@
 - Phase 3 Project + Job + Resource complete.
 - Phase 4 Job Lifecycle & Worker Engine complete.
 - Phase 5 Payment, Wallet & Billing Engine complete.
+- Automated Test Suite & Coverage verified (9/9 passed).
 - Next step: Phase 6 — Production Hardening & Observability.
+
