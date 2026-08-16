@@ -18,6 +18,7 @@ public class AuthServiceImplementation : IAuthService
     private readonly JwtSettings _jwtSettings;
     private readonly ILogger<AuthServiceImplementation> _logger;
     private readonly string _userServiceUrl;
+    private readonly string _paymentServiceUrl;
 
     public AuthServiceImplementation(
         AuthDbContext dbContext,
@@ -36,6 +37,51 @@ public class AuthServiceImplementation : IAuthService
         _httpClient = httpClientFactory.CreateClient();
 
         _userServiceUrl = configuration?["UserServiceUrl"] ?? "http://localhost:5002";
+        _paymentServiceUrl = configuration?["PaymentServiceUrl"] ?? "http://localhost:5006";
+
+        SeedDefaultAccountsAsync().GetAwaiter().GetResult();
+    }
+
+    private async Task SeedDefaultAccountsAsync()
+    {
+        try
+        {
+            var adminEmail = "admin@dgx-compute.io";
+            if (!await _dbContext.UsersAuth.AnyAsync(u => u.Email == adminEmail))
+            {
+                var adminUser = new UserAuth
+                {
+                    Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                    Email = adminEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@2026!", 12),
+                    Role = "ADMIN",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _dbContext.UsersAuth.Add(adminUser);
+            }
+
+            var devEmail = "developer@ai-cloud.io";
+            if (!await _dbContext.UsersAuth.AnyAsync(u => u.Email == devEmail))
+            {
+                var devUser = new UserAuth
+                {
+                    Id = Guid.Parse("00000000-0000-0000-0000-000000000002"),
+                    Email = devEmail,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("User@2026!", 12),
+                    Role = "USER",
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _dbContext.UsersAuth.Add(devUser);
+            }
+
+            await _dbContext.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Seed default accounts skipped: {Message}", ex.Message);
+        }
     }
 
     public async Task<ApiResponse<AuthResponse>> RegisterAsync(RegisterRequest request)
@@ -49,7 +95,7 @@ public class AuthServiceImplementation : IAuthService
         }
 
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 12);
-        var role = string.IsNullOrWhiteSpace(request.Role) ? "USER" : request.Role.ToUpper();
+        var role = "USER";
 
         var userAuth = new UserAuth
         {
@@ -68,7 +114,6 @@ public class AuthServiceImplementation : IAuthService
         _dbContext.UsersAuth.Add(userAuth);
         await _dbContext.SaveChangesAsync();
 
-        // Call UserService to create profile
         try
         {
             var profilePayload = new
@@ -78,16 +123,25 @@ public class AuthServiceImplementation : IAuthService
                 Email = userAuth.Email,
                 Role = userAuth.Role
             };
-
-            var response = await _httpClient.PostAsJsonAsync($"{_userServiceUrl}/api/users/internal/create", profilePayload);
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogWarning("Failed to create profile in UserService. Status: {StatusCode}", response.StatusCode);
-            }
+            await _httpClient.PostAsJsonAsync($"{_userServiceUrl}/api/users/internal/create", profilePayload);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calling UserService to create user profile");
+        }
+
+        try
+        {
+            var walletPayload = new
+            {
+                UserId = userAuth.Id,
+                InitialBalance = 100000m
+            };
+            await _httpClient.PostAsJsonAsync($"{_paymentServiceUrl}/api/wallet/internal/init", walletPayload);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calling PaymentService to init wallet");
         }
 
         var accessToken = _jwtTokenService.GenerateAccessToken(userAuth, request.Name);
@@ -101,7 +155,7 @@ public class AuthServiceImplementation : IAuthService
             refreshToken
         );
 
-        return ApiResponse<AuthResponse>.Ok(authResponse, "User registered successfully");
+        return ApiResponse<AuthResponse>.Ok(authResponse, "User registered successfully with +100,000 VND welcome bonus");
     }
 
     public async Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request)
@@ -121,7 +175,6 @@ public class AuthServiceImplementation : IAuthService
 
         await _dbContext.SaveChangesAsync();
 
-        // Fetch name from user profile if possible, fallback to email prefix
         string userName = userAuth.Email.Split('@')[0];
         try
         {
@@ -133,7 +186,6 @@ public class AuthServiceImplementation : IAuthService
         }
         catch
         {
-            // fallback used
         }
 
         var accessToken = _jwtTokenService.GenerateAccessToken(userAuth, userName);

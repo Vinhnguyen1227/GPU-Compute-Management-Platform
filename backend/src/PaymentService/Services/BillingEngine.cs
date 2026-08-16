@@ -18,19 +18,18 @@ public class BillingEngine : IBillingEngine
 
     public async Task ProcessJobCompletionAsync(JobCompletedEvent @event, CancellationToken ct = default)
     {
-        _logger.LogInformation("Processing billing for completed job {JobId} (Duration: {Duration}h, GPU: {GpuType})",
+        _logger.LogInformation("Processing Pay-As-You-Go billing for completed job {JobId} (Actual Duration: {Duration}h, GPU: {GpuType})",
             @event.JobId, @event.ActualDurationHours, @event.GpuType);
 
         var pricing = await _db.ResourcePricings.FindAsync(new object[] { @event.GpuType }, ct);
-        decimal pricePerHour = pricing?.PricePerHour ?? 2.00m;
-        decimal cost = Math.Round((decimal)@event.ActualDurationHours * pricePerHour, 2);
+        decimal pricePerHour = pricing?.PricePerHour ?? 50000m;
+        decimal cost = Math.Round((decimal)@event.ActualDurationHours * pricePerHour, 0);
 
         if (@event.FinalCost > 0)
         {
             cost = @event.FinalCost;
         }
 
-        // Deduct from wallet
         var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == @event.UserId, ct);
         if (wallet == null)
         {
@@ -39,7 +38,7 @@ public class BillingEngine : IBillingEngine
                 Id = Guid.NewGuid(),
                 UserId = @event.UserId,
                 Balance = -cost,
-                Currency = "USD",
+                Currency = "VND",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -51,14 +50,13 @@ public class BillingEngine : IBillingEngine
             wallet.UpdatedAt = DateTime.UtcNow;
         }
 
-        // Create transaction record
         var tx = new PaymentTransaction
         {
             Id = Guid.NewGuid(),
             UserId = @event.UserId,
             TransactionType = "GPU_USAGE",
-            Amount = -cost, // Negative indicates deduction
-            Currency = "USD",
+            Amount = -cost,
+            Currency = "VND",
             Status = "SUCCESS",
             PaymentMethod = "System",
             ReferenceCode = $"BILL-JOB-{@event.JobId.ToString()[..8]}",
@@ -67,7 +65,6 @@ public class BillingEngine : IBillingEngine
         };
         _db.PaymentTransactions.Add(tx);
 
-        // Create resource usage record
         var usage = new ResourceUsage
         {
             Id = Guid.NewGuid(),
@@ -82,7 +79,6 @@ public class BillingEngine : IBillingEngine
         };
         _db.ResourceUsages.Add(usage);
 
-        // Double-entry ledger debit
         var ledger = new LedgerEntry
         {
             Id = Guid.NewGuid(),
@@ -95,7 +91,7 @@ public class BillingEngine : IBillingEngine
         _db.LedgerEntries.Add(ledger);
 
         await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("Billed user {UserId} amount ${Cost} for Job {JobId}", @event.UserId, cost, @event.JobId);
+        _logger.LogInformation("Billed user {UserId} amount {Cost} VND for Job {JobId}", @event.UserId, cost, @event.JobId);
     }
 
     public async Task ProcessJobFailureAsync(JobFailedEvent @event, CancellationToken ct = default)
@@ -104,13 +100,12 @@ public class BillingEngine : IBillingEngine
 
         if (@event.PartialDurationHours <= 0)
         {
-            return; // No billable compute used
+            return;
         }
 
-        // Partial charge / refund logic
         var pricing = await _db.ResourcePricings.FirstOrDefaultAsync(ct);
-        decimal pricePerHour = pricing?.PricePerHour ?? 2.00m;
-        decimal partialCost = Math.Round((decimal)@event.PartialDurationHours * pricePerHour, 2);
+        decimal pricePerHour = pricing?.PricePerHour ?? 50000m;
+        decimal partialCost = Math.Round((decimal)@event.PartialDurationHours * pricePerHour, 0);
 
         var wallet = await _db.Wallets.FirstOrDefaultAsync(w => w.UserId == @event.UserId, ct);
         if (wallet != null)
@@ -125,7 +120,7 @@ public class BillingEngine : IBillingEngine
             UserId = @event.UserId,
             TransactionType = "GPU_USAGE",
             Amount = -partialCost,
-            Currency = "USD",
+            Currency = "VND",
             Status = "SUCCESS",
             PaymentMethod = "System",
             ReferenceCode = $"FAIL-JOB-{@event.JobId.ToString()[..8]}",
