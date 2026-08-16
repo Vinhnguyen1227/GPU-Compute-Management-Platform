@@ -1,14 +1,64 @@
-import { User, Project, TrainingJob, GPUNode, Transaction, ClusterMetrics } from '../types';
+import { User, Project, TrainingJob, GPUNode, Transaction, ClusterMetrics, GPUType } from '../types';
 
-export const mockUser: User = {
-  id: 'usr_001',
-  name: 'Alex Rivera',
-  email: 'alex.rivera@ai-cloud.io',
-  role: 'ENGINEER',
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
-  balance: 11250000, // 11,250,000 VND
-  currency: 'VND',
+export const initialGpuPricing: Record<GPUType, number> = {
+  'NVIDIA H100 (80GB)': 112500,
+  'NVIDIA A100 (80GB)': 50000,
+  'NVIDIA RTX 4090 (24GB)': 20000,
+  'NVIDIA L40S (48GB)': 37500,
 };
+
+export const mockUsersList: User[] = [
+  {
+    id: 'usr_admin',
+    name: 'Hoàng Anh Tuấn (Admin)',
+    email: 'admin@dgx-compute.io',
+    role: 'ADMIN',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+    balance: 50000000, // 50M VND
+    currency: 'VND',
+    status: 'ACTIVE',
+    createdAt: '2026-07-01 08:00:00',
+    totalJobsRun: 12,
+  },
+  {
+    id: 'usr_001',
+    name: 'Alex Rivera',
+    email: 'developer@ai-cloud.io',
+    role: 'USER',
+    avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+    balance: 11250000, // 11.25M VND
+    currency: 'VND',
+    status: 'ACTIVE',
+    createdAt: '2026-08-01 10:14:00',
+    totalJobsRun: 5,
+  },
+  {
+    id: 'usr_002',
+    name: 'Trần Minh Đức',
+    email: 'duc.tm@nlp-lab.vn',
+    role: 'ENGINEER',
+    avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80',
+    balance: 4500000, // 4.5M VND
+    currency: 'VND',
+    status: 'ACTIVE',
+    createdAt: '2026-08-05 14:00:00',
+    totalJobsRun: 8,
+  },
+  {
+    id: 'usr_003',
+    name: 'Nguyễn Văn A',
+    email: 'anguyen@startup.ai',
+    role: 'USER',
+    avatarUrl: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=crop&w=150&q=80',
+    balance: 200000, // 200k VND
+    currency: 'VND',
+    status: 'ACTIVE',
+    createdAt: '2026-08-12 09:30:00',
+    totalJobsRun: 1,
+  },
+];
+
+export const mockUser: User = mockUsersList[0]; // Default to Admin for testing
 
 export const mockProjects: Project[] = [
   {
@@ -39,7 +89,7 @@ export const mockProjects: Project[] = [
     datasetSize: '89.0 GB',
     createdAt: '2026-08-08 09:05:44',
     jobCount: 1,
-    ownerId: 'usr_001',
+    ownerId: 'usr_002',
   },
 ];
 
@@ -61,6 +111,7 @@ export const mockJobs: TrainingJob[] = [
     startedAt: '2026-08-10 04:32:15',
     command: 'torchrun --nproc_per_node=4 train.py --model_name llama-3-70b --batch_size 16',
     framework: 'PyTorch 2.4 + CUDA 12.4',
+    userId: 'usr_001',
   },
   {
     id: 'job-902',
@@ -79,6 +130,7 @@ export const mockJobs: TrainingJob[] = [
     startedAt: '2026-08-10 07:15:00',
     command: 'accelerate launch train_network.py --pretrained_model_name_or_path sdxl.safetensors',
     framework: 'Diffusers + PyTorch',
+    userId: 'usr_001',
   },
   {
     id: 'job-903',
@@ -95,6 +147,7 @@ export const mockJobs: TrainingJob[] = [
     createdAt: '2026-08-10 08:50:00',
     command: 'python train_whisper.py --language vi --dataset vn_speech_corpus',
     framework: 'Transformers',
+    userId: 'usr_002',
   },
   {
     id: 'job-899',
@@ -114,24 +167,7 @@ export const mockJobs: TrainingJob[] = [
     completedAt: '2026-08-09 18:02:00',
     command: 'torchrun --nproc_per_node=4 train.py --epoch 2',
     framework: 'PyTorch 2.4',
-  },
-  {
-    id: 'job-895',
-    name: 'Test-CUDA-OOM-Experiment',
-    projectId: 'proj-02',
-    projectName: 'Stable Diffusion XL LoRA',
-    gpuType: 'NVIDIA RTX 4090 (24GB)',
-    gpuCount: 1,
-    status: 'FAILED',
-    progress: 12,
-    durationHours: 0.5,
-    costPerHour: 20000,
-    totalCost: 10000,
-    createdAt: '2026-08-08 16:20:00',
-    startedAt: '2026-08-08 16:21:00',
-    completedAt: '2026-08-08 16:31:00',
-    command: 'python train.py --batch_size 128',
-    framework: 'PyTorch 2.4',
+    userId: 'usr_001',
   },
 ];
 
@@ -233,18 +269,6 @@ export const mockTransactions: Transaction[] = [
     referenceCode: 'VNP-20260805-44910',
     description: 'Nạp tiền qua VNPay Gateway',
     timestamp: '2026-08-05 11:20:00',
-  },
-  {
-    id: 'tx-1005',
-    userId: 'usr_001',
-    type: 'REFUND',
-    amount: 125000,
-    currency: 'VND',
-    status: 'SUCCESS',
-    paymentMethod: 'System',
-    referenceCode: 'REFUND-JOB-895',
-    description: 'Hoàn tiền một phần cho lỗi CUDA OOM',
-    timestamp: '2026-08-08 16:35:00',
   },
 ];
 

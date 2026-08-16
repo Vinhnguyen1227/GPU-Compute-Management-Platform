@@ -21,11 +21,12 @@ import { User } from '../../types';
 interface ShellProps {
   currentPath: string;
   onNavigate: (path: string) => void;
+  onLogout: () => void;
   user: User;
   children: React.ReactNode;
 }
 
-export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, children }) => {
+export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, onLogout, user, children }) => {
   const { t, i18n } = useTranslation();
 
   const navItems = [
@@ -37,8 +38,14 @@ export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, chi
     { path: '/billing', label: t('nav.wallet_billing'), icon: Wallet },
   ];
 
+  // Show Admin Console if user has ADMIN or ENGINEER role
   if (user.role === 'ADMIN' || user.role === 'ENGINEER') {
-    navItems.push({ path: '/admin', label: t('nav.admin_console'), icon: ShieldCheck });
+    navItems.push({ 
+      path: '/admin', 
+      label: t('nav.admin_console'), 
+      icon: ShieldCheck,
+      badge: user.role === 'ADMIN' ? '👑 SUPER' : undefined
+    });
   }
 
   const switchLang = (lang: string) => {
@@ -91,7 +98,7 @@ export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, chi
                   <span>{item.label}</span>
                 </div>
                 {item.badge && (
-                  <span className="px-2 py-0.5 text-[10px] font-mono rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800/50">
+                  <span className="px-2 py-0.5 text-[10px] font-mono rounded-full bg-purple-950 text-purple-300 border border-purple-800/60 font-bold">
                     {item.badge}
                   </span>
                 )}
@@ -179,21 +186,27 @@ export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, user, chi
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#76B900] rounded-full"></span>
             </button>
 
-            {/* User Profile */}
+            {/* User Profile Pill with Role */}
             <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
               <img
                 src={user.avatarUrl}
                 alt={user.name}
                 className="w-8 h-8 rounded-full border border-slate-700 object-cover"
               />
-              <div className="text-left hidden sm:block">
+              <div className="text-left hidden sm:block font-mono">
                 <div className="text-xs font-semibold text-slate-200 leading-tight">{user.name}</div>
-                <div className="text-[10px] text-[#76B900] font-mono">{user.role} {t('common.access')}</div>
+                <div className={`text-[10px] font-bold ${
+                  user.role === 'ADMIN' ? 'text-purple-400' :
+                  user.role === 'ENGINEER' ? 'text-cyan-400' :
+                  'text-[#76B900]'
+                }`}>
+                  {user.role} ACCESS
+                </div>
               </div>
               <button 
-                onClick={() => onNavigate('/login')}
+                onClick={onLogout}
                 title={t('common.sign_out')}
-                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition"
+                className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded transition cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
               </button>

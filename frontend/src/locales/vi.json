@@ -38,7 +38,14 @@
     "account_role": "Vai Trò Tài Khoản",
     "register": "Đăng Ký Tài Khoản",
     "authenticate": "Xác Thực & Khởi Chạy",
-    "protected_by": "Được bảo vệ bởi JWT & OAuth 2.0 Auth Service (.NET 9)"
+    "protected_by": "Được bảo vệ bởi JWT & OAuth 2.0 Auth Service (.NET 9)",
+    "quick_admin": "🔑 Đăng Nhập Admin",
+    "quick_user": "👤 Đăng Nhập User",
+    "confirm_password": "Xác Nhận Mật Khẩu",
+    "password_mismatch": "Mật khẩu xác nhận không khớp!",
+    "email_exists": "Email này đã được sử dụng!",
+    "register_success": "Đăng ký thành công! Đã tặng 100.000₫ số dư ban đầu.",
+    "invalid_creds": "Email hoặc mật khẩu không chính xác!"
   },
   "dashboard": {
     "title": "Tổng Quan Cụm GPU",
@@ -114,7 +121,9 @@
     "total_cost": "Tổng Chi Phí",
     "actions": "Hành Động",
     "inspect_logs": "Xem Nhật Ký",
-    "queued": "Đang chờ..."
+    "queued": "Đang chờ...",
+    "stop_action": "Dừng GPU",
+    "running_continuous": "Đang chạy..."
   },
   "submit_job": {
     "title": "Gửi Tác Vụ Huấn Luyện GPU",
@@ -128,19 +137,23 @@
     "gpu_cards": "Số Lượng Card GPU",
     "gpu_node": "GPU Node",
     "gpus_parallel": "GPU (Song Song Phân Tán)",
-    "runtime": "Thời Gian Chạy Ước Tính (Giờ)",
+    "runtime": "Thời Gian Thuê Dự Kiến (Dùng Tính Số Dư Tối Thiểu)",
     "command": "Lệnh Thực Thi",
-    "billing_title": "Ước Tính Chi Phí Tác Vụ",
+    "billing_title": "Xác Thực Ngưỡng Số Dư Thuê GPU",
     "selected_gpu": "GPU Đã Chọn",
     "gpu_count": "Số Lượng GPU",
     "hourly_rate": "Giá Phần Cứng Theo Giờ",
     "duration": "Thời Gian Mục Tiêu",
     "hours": "Giờ",
     "total_billed": "Tổng Chi Phí Dự Kiến",
-    "insufficient": "Số Dư Ví Không Đủ",
-    "insufficient_desc": "Số dư của bạn ({{balance}}) ít hơn tổng chi phí ước tính ({{cost}}).",
+    "insufficient": "Số Dư Không Đủ Ngưỡng Tối Thiểu",
+    "insufficient_desc": "Số dư hiện tại của bạn ({{balance}}) ít hơn ngưỡng tối thiểu yêu cầu ({{cost}}). Vui lòng nạp thêm để bắt đầu thuê.",
     "top_up_wallet": "Nạp Thêm Tiền Vào Ví",
-    "submit_scheduler": "Gửi Tác Vụ Đến Bộ Lập Lịch"
+    "submit_scheduler": "Khởi Chạy & Bắt Đầu Thuê GPU",
+    "runtime_help": "Dùng để xác định số dư tối thiểu cần có trong ví trước khi thuê GPU.",
+    "pay_as_you_go_badge": "Chế Độ Thuê Linh Hoạt (Pay-As-You-Go)",
+    "pay_as_you_go_desc": "GPU sẽ chạy liên tục cho đến khi bạn bấm Dừng hoặc số dư ví về 0₫. Bạn chỉ trả tiền theo thời gian thực tế sử dụng.",
+    "min_balance_required": "Số Dư Tối Thiểu Cần Có Để Bắt Đầu"
   },
   "resources": {
     "title": "Cơ Sở Hạ Tầng GPU & Cấu Hình Nút",
@@ -186,7 +199,7 @@
   },
   "monitor": {
     "back_jobs": "Quay Lại Trung Tâm Tác Vụ",
-    "terminate": "Dừng Thực Thi Tác Vụ",
+    "terminate": "Dừng & Giải Phóng GPU",
     "training_loss": "Đường Cong Loss & Đo Lường Huấn Luyện",
     "realtime_convergence": "Đo lường hội tụ theo thời gian thực",
     "training_loss_label": "Training Loss",
@@ -196,7 +209,13 @@
     "vram_used": "Bộ Nhớ VRAM Đã Dùng",
     "temperature": "Nhiệt Độ",
     "worker_active": "Worker Service Đang Hoạt Động",
-    "terminal_output": "Đầu Ra Terminal Worker Process (stdout/stderr)"
+    "terminal_output": "Đầu Ra Terminal Worker Process (stdout/stderr)",
+    "terminate_confirm": "Bạn có chắc chắn muốn dừng GPU này? Hệ thống sẽ giải phóng nút GPU và chỉ trừ phí theo thời gian thực tế sử dụng.",
+    "live_cost": "Chi Phí Tích Lũy Thực Tế",
+    "elapsed_time": "Thời Gian Đã Chạy",
+    "stopped_by_user": "Đã dừng & giải phóng bởi người dùng",
+    "stopped_out_of_funds": "Tự động dừng: Hết số dư ví",
+    "payg_active": "Đang chạy liên tục • Tính phí theo giây"
   },
   "admin": {
     "title": "Quản Trị & Điều Hành Cơ Sở Hạ Tầng",
@@ -208,6 +227,34 @@
     "prevents_over": "Ngăn phân bổ quá mức",
     "node_drain": "Bảo Trì & Rút Nút Cụm",
     "re_enable": "Kích Hoạt Lại Nút",
-    "set_maintenance": "Đặt Chế Độ Bảo Trì"
+    "set_maintenance": "Đặt Chế Độ Bảo Trì",
+    "tabs": {
+      "nodes": "🖥️ Quản Trị Cụm & Giá GPU",
+      "users": "👥 Quản Lý Người Dùng",
+      "jobs": "⚡ Tất Cả Tác Vụ Cụm",
+      "revenue": "💰 Báo Cáo Doanh Thu"
+    },
+    "pricing_title": "Cấu Hình Bảng Giá GPU Theo Giờ (VND)",
+    "save_pricing": "Lưu Bảng Giá Mới",
+    "pricing_updated": "Đã cập nhật bảng giá GPU thành công!",
+    "user_table": {
+      "user": "Người Dùng",
+      "role": "Vai Trò",
+      "balance": "Số Dư Ví",
+      "status": "Trạng Thái",
+      "joined": "Ngày Tham Gia",
+      "actions": "Hành Động"
+    },
+    "adjust_balance": "Điều Chỉnh Số Dư (+/-)",
+    "add_credit": "Cộng Tiền Ví",
+    "deduct_credit": "Trừ Tiền Ví",
+    "ban_user": "Khóa Tài Khoản",
+    "unban_user": "Mở Khóa Tài Khoản",
+    "force_kill": "Buộc Dừng Khẩn Cấp",
+    "force_kill_confirm": "Bạn có chắc chắn muốn dừng khẩn cấp tác vụ này?",
+    "total_revenue": "Tổng Doanh Thu Đã Nạp",
+    "total_compute_billed": "Tổng Phí Tính Toán Đã Thu",
+    "total_users": "Tổng Người Dùng",
+    "total_jobs": "Tổng Tác Vụ Đã Chạy"
   }
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Square, Cpu, HardDrive, Flame, Terminal } from 'lucide-react';
+import { ArrowLeft, Square, Cpu, HardDrive, Flame, Terminal, Clock, DollarSign, Zap } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrainingJob } from '../types';
 
@@ -18,7 +18,27 @@ export const JobMonitor: React.FC<JobMonitorProps> = ({ job, onBack, onCancelJob
     `[TRAIN] Starting training loop — batch_size=16, lr=2e-5`,
   ]);
   const [telemetry, setTelemetry] = useState<{ step: number; loss: number; gpuUtil: number; temp: number }[]>([]);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  // Live timer for RUNNING jobs
+  useEffect(() => {
+    if (job.status !== 'RUNNING') return;
+    const timer = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [job.status]);
+
+  const liveElapsedHours = elapsedSeconds / 3600;
+  const liveBilledCost = Math.round(liveElapsedHours * job.costPerHour * job.gpuCount);
+
+  const formatTimer = (secs: number) => {
+    const h = Math.floor(secs / 3600).toString().padStart(2, '0');
+    const m = Math.floor((secs % 3600) / 60).toString().padStart(2, '0');
+    const s = (secs % 60).toString().padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  };
 
   useEffect(() => {
     const initData = [
@@ -60,6 +80,12 @@ export const JobMonitor: React.FC<JobMonitorProps> = ({ job, onBack, onCancelJob
     terminalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [logs]);
 
+  const handleTerminateClick = () => {
+    if (window.confirm(t('monitor.terminate_confirm'))) {
+      onCancelJob(job.id);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Back button & Title */}
@@ -81,7 +107,7 @@ export const JobMonitor: React.FC<JobMonitorProps> = ({ job, onBack, onCancelJob
                 job.status === 'FAILED' ? 'bg-red-950 text-red-400 border border-red-800' :
                 'bg-slate-800 text-slate-300'
               }`}>
-                {job.status}
+                {job.status === 'RUNNING' ? '⚡ RUNNING (Pay-As-You-Go)' : job.status}
               </span>
             </div>
             <p className="text-xs text-slate-400 font-mono mt-1">
@@ -89,14 +115,35 @@ export const JobMonitor: React.FC<JobMonitorProps> = ({ job, onBack, onCancelJob
             </p>
           </div>
 
-          {job.status === 'RUNNING' && (
-            <button
-              onClick={() => onCancelJob(job.id)}
-              className="px-4 py-2 rounded-lg bg-red-950/80 border border-red-800 text-red-400 hover:bg-red-900 font-mono font-bold text-xs flex items-center gap-2 transition"
-            >
-              <Square className="w-3.5 h-3.5 fill-current" /> {t('monitor.terminate')}
-            </button>
-          )}
+          <div className="flex items-center gap-4">
+            {/* Live Runtime & Live Cost Counters */}
+            {job.status === 'RUNNING' && (
+              <div className="flex items-center gap-3 bg-slate-950/80 px-4 py-2 rounded-xl border border-slate-800 font-mono">
+                <div className="text-right">
+                  <div className="text-[10px] text-slate-400 uppercase flex items-center gap-1 justify-end">
+                    <Clock className="w-3 h-3 text-cyan-400" /> {t('monitor.elapsed_time')}
+                  </div>
+                  <div className="text-sm font-bold text-cyan-400">{formatTimer(elapsedSeconds)}</div>
+                </div>
+                <div className="h-6 w-px bg-slate-800" />
+                <div className="text-right">
+                  <div className="text-[10px] text-slate-400 uppercase flex items-center gap-1 justify-end">
+                    <Zap className="w-3 h-3 text-[#76B900]" /> {t('monitor.live_cost')}
+                  </div>
+                  <div className="text-sm font-bold text-[#76B900]">{liveBilledCost.toLocaleString('vi-VN')}₫</div>
+                </div>
+              </div>
+            )}
+
+            {job.status === 'RUNNING' && (
+              <button
+                onClick={handleTerminateClick}
+                className="px-5 py-2.5 rounded-xl bg-red-950/90 border border-red-800 text-red-400 hover:bg-red-900 hover:text-white font-mono font-extrabold text-xs flex items-center gap-2 transition shadow-lg shadow-red-950/40 cursor-pointer"
+              >
+                <Square className="w-3.5 h-3.5 fill-current" /> {t('monitor.terminate')}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -38,7 +38,14 @@
     "account_role": "Account Role",
     "register": "Register Account",
     "authenticate": "Authenticate & Launch",
-    "protected_by": "Protected by JWT & OAuth 2.0 Auth Service (.NET 9)"
+    "protected_by": "Protected by JWT & OAuth 2.0 Auth Service (.NET 9)",
+    "quick_admin": "🔑 Login as Admin",
+    "quick_user": "👤 Login as User",
+    "confirm_password": "Confirm Password",
+    "password_mismatch": "Passwords do not match!",
+    "email_exists": "Email is already registered!",
+    "register_success": "Registration successful! Welcome bonus +100,000₫ added.",
+    "invalid_creds": "Invalid email or password!"
   },
   "dashboard": {
     "title": "GPU Cluster Overview",
@@ -114,7 +121,9 @@
     "total_cost": "Total Cost",
     "actions": "Actions",
     "inspect_logs": "Inspect Logs",
-    "queued": "Queued..."
+    "queued": "Queued...",
+    "stop_action": "Stop GPU",
+    "running_continuous": "Running..."
   },
   "submit_job": {
     "title": "Submit GPU Training Job",
@@ -128,19 +137,23 @@
     "gpu_cards": "GPU Cards Requested",
     "gpu_node": "GPU Node",
     "gpus_parallel": "GPUs (Parallel Distributed)",
-    "runtime": "Estimated Runtime (Hours)",
+    "runtime": "Estimated Duration (Min Balance Reference)",
     "command": "Execution Command String",
-    "billing_title": "Job Billing Estimation",
+    "billing_title": "Lease Pre-Authorization Check",
     "selected_gpu": "Selected GPU",
     "gpu_count": "GPU Count",
     "hourly_rate": "Hourly Hardware Rate",
     "duration": "Target Duration",
     "hours": "Hours",
     "total_billed": "Total Billed Cost",
-    "insufficient": "Insufficient Wallet Balance",
-    "insufficient_desc": "Your balance ({{balance}}) is less than total estimated cost ({{cost}}).",
+    "insufficient": "Insufficient Minimum Balance",
+    "insufficient_desc": "Your current wallet balance ({{balance}}) is less than the required minimum threshold ({{cost}}). Please top up to begin.",
     "top_up_wallet": "Top Up Wallet Balance",
-    "submit_scheduler": "Submit Job To Scheduler"
+    "submit_scheduler": "Launch & Lease GPU Instance",
+    "runtime_help": "Used to determine the minimum wallet balance required before leasing the GPU.",
+    "pay_as_you_go_badge": "Flexible Pay-As-You-Go Lease",
+    "pay_as_you_go_desc": "GPU runs continuously until you click Stop or your wallet balance hits 0₫. You only pay for exact runtime used.",
+    "min_balance_required": "Minimum Wallet Balance Required"
   },
   "resources": {
     "title": "GPU Infrastructure & Node Topology",
@@ -186,7 +199,7 @@
   },
   "monitor": {
     "back_jobs": "Back to Job Center",
-    "terminate": "Terminate Job Execution",
+    "terminate": "Stop & Release GPU",
     "training_loss": "Training Loss & Telemetry Curve",
     "realtime_convergence": "Real-time convergence telemetry",
     "training_loss_label": "Training Loss",
@@ -196,7 +209,13 @@
     "vram_used": "VRAM Memory Used",
     "temperature": "Temperature",
     "worker_active": "Worker Service Active",
-    "terminal_output": "Worker Process Terminal Output (stdout/stderr)"
+    "terminal_output": "Worker Process Terminal Output (stdout/stderr)",
+    "terminate_confirm": "Are you sure you want to stop this GPU? The node will be released and you will only be charged for the actual elapsed runtime.",
+    "live_cost": "Accumulated Live Cost",
+    "elapsed_time": "Elapsed Runtime",
+    "stopped_by_user": "Stopped & Released by user",
+    "stopped_out_of_funds": "Auto-Stopped: Out of wallet funds",
+    "payg_active": "Running continuously • Billed by runtime"
   },
   "admin": {
     "title": "Admin & Infrastructure Governance Console",
@@ -208,6 +227,34 @@
     "prevents_over": "Prevents over-allocation",
     "node_drain": "Cluster Node Drainage & Maintenance Operations",
     "re_enable": "Re-enable Node",
-    "set_maintenance": "Set Maintenance Drain"
+    "set_maintenance": "Set Maintenance Drain",
+    "tabs": {
+      "nodes": "🖥️ Node Governance & Pricing",
+      "users": "👥 User Management",
+      "jobs": "⚡ Global Cluster Jobs",
+      "revenue": "💰 Revenue Analytics"
+    },
+    "pricing_title": "Configure Hourly GPU Pricing (VND/hr)",
+    "save_pricing": "Save New Pricing",
+    "pricing_updated": "GPU pricing updated successfully!",
+    "user_table": {
+      "user": "User",
+      "role": "Role",
+      "balance": "Wallet Balance",
+      "status": "Status",
+      "joined": "Joined Date",
+      "actions": "Actions"
+    },
+    "adjust_balance": "Adjust Balance (+/-)",
+    "add_credit": "Add Credit",
+    "deduct_credit": "Deduct Credit",
+    "ban_user": "Ban User",
+    "unban_user": "Unban User",
+    "force_kill": "Force Terminate",
+    "force_kill_confirm": "Are you sure you want to force terminate this job immediately?",
+    "total_revenue": "Total Platform Deposits",
+    "total_compute_billed": "Total Compute Billed",
+    "total_users": "Total Users",
+    "total_jobs": "Total Cluster Jobs"
   }
 }
