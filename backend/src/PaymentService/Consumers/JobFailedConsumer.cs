@@ -14,7 +14,7 @@ public class JobFailedConsumer : KafkaConsumerBase<JobFailedEvent>
         ILogger<JobFailedConsumer> logger,
         IServiceScopeFactory scopeFactory)
         : base(
-            config["Kafka:BootstrapServers"] ?? "localhost:9092",
+            config["KAFKA_BOOTSTRAP_SERVERS"] ?? config["Kafka:BootstrapServers"] ?? "localhost:9092",
             "payment-service-job-failed-group",
             KafkaTopics.JobFailed,
             logger)

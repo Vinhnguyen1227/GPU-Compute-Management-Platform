@@ -14,7 +14,7 @@ public class JobCompletedConsumer : KafkaConsumerBase<JobCompletedEvent>
         ILogger<JobCompletedConsumer> logger,
         IServiceScopeFactory scopeFactory)
         : base(
-            config["Kafka:BootstrapServers"] ?? "localhost:9092",
+            config["KAFKA_BOOTSTRAP_SERVERS"] ?? config["Kafka:BootstrapServers"] ?? "localhost:9092",
             "payment-service-job-completed-group",
             KafkaTopics.JobCompleted,
             logger)

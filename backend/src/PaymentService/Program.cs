@@ -30,7 +30,7 @@ builder.Services.AddDbContext<PaymentDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 // Kafka Messaging
-var kafkaBootstrap = builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
+var kafkaBootstrap = builder.Configuration["KAFKA_BOOTSTRAP_SERVERS"] ?? builder.Configuration["Kafka:BootstrapServers"] ?? "localhost:9092";
 builder.Services.AddSingleton<IKafkaProducer>(sp =>
 {
     var logger = sp.GetRequiredService<ILogger<KafkaProducer>>();

@@ -1,9 +1,7 @@
-using System.Text.Json;
-using Confluent.Kafka;
 using JobService.Data;
+using JobService.Events;
 using JobService.Models;
 using Microsoft.EntityFrameworkCore;
-using Shared.Constants;
 using Shared.Events;
 using Shared.Models;
 
@@ -12,38 +10,38 @@ namespace JobService.Services;
 public class JobServiceImplementation : IJobService
 {
     private readonly JobDbContext _dbContext;
-    private readonly IProducer<string, string> _producer;
+    private readonly JobEventProducer _eventProducer;
     private readonly ILogger<JobServiceImplementation> _logger;
 
     public JobServiceImplementation(
         JobDbContext dbContext,
-        IProducer<string, string> producer,
+        JobEventProducer eventProducer,
         ILogger<JobServiceImplementation> logger)
     {
         _dbContext = dbContext;
-        _producer = producer;
+        _eventProducer = eventProducer;
         _logger = logger;
     }
 
-    public async Task<ApiResponse<TrainingJobDto>> CreateJobAsync(CreateJobRequest request, Guid userId, CancellationToken ct = default)
+    public async Task<TrainingJob> SubmitJobAsync(SubmitJobRequest request, Guid userId, CancellationToken ct = default)
     {
         var job = new TrainingJob
         {
             Id = Guid.NewGuid(),
-            UserId = userId,
+            OwnerId = userId,
             ProjectId = request.ProjectId,
+            ProjectName = string.IsNullOrWhiteSpace(request.ProjectName) ? "AI Project" : request.ProjectName,
             Name = request.Name,
-            Framework = request.Framework,
-            Command = request.Command,
             GpuType = request.GpuType,
-            GpuCount = request.GpuCount,
-            Status = "QUEUED",
+            GpuCount = request.GpuCount > 0 ? request.GpuCount : 1,
+            Status = "CREATED",
             Progress = 0,
-            EstimatedDurationHours = request.EstimatedDurationHours,
+            DurationHours = request.DurationHours,
             CostPerHour = request.CostPerHour,
-            TotalCost = 0m,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            TotalCost = request.TotalCost,
+            Command = request.Command,
+            Framework = request.Framework,
+            CreatedAt = DateTime.UtcNow
         };
 
         _dbContext.TrainingJobs.Add(job);
@@ -52,96 +50,94 @@ public class JobServiceImplementation : IJobService
         var jobCreatedEvent = new JobCreatedEvent
         {
             JobId = job.Id,
-            UserId = job.UserId,
+            UserId = userId,
             ProjectId = job.ProjectId,
             GpuType = job.GpuType,
             GpuCount = job.GpuCount,
             CreatedAt = job.CreatedAt
         };
 
-        var message = new Message<string, string>
-        {
-            Key = job.Id.ToString(),
-            Value = JsonSerializer.Serialize(jobCreatedEvent)
-        };
+        await _eventProducer.PublishJobCreatedAsync(jobCreatedEvent, ct);
+        _logger.LogInformation("Job {JobId} created for User {UserId} and event published", job.Id, userId);
 
-        await _producer.ProduceAsync(KafkaTopics.JobCreated, message, ct);
-        _logger.LogInformation("Job {JobId} created and published to topic {Topic}", job.Id, KafkaTopics.JobCreated);
-
-        return ApiResponse<TrainingJobDto>.Ok(MapToDto(job));
+        return job;
     }
 
-    public async Task<ApiResponse<TrainingJobDto>> GetJobByIdAsync(Guid jobId, CancellationToken ct = default)
+    public async Task<PaginatedResult<TrainingJob>> GetJobsAsync(string? status = null, Guid? projectId = null, Guid? ownerId = null, int page = 1, int pageSize = 20, CancellationToken ct = default)
     {
-        var job = await _dbContext.TrainingJobs.FindAsync(new object[] { jobId }, ct);
-        if (job == null)
+        var query = _dbContext.TrainingJobs.AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
         {
-            return ApiResponse<TrainingJobDto>.Fail("Job not found");
+            query = query.Where(j => j.Status == status);
         }
-        return ApiResponse<TrainingJobDto>.Ok(MapToDto(job));
-    }
 
-    public async Task<ApiResponse<List<TrainingJobDto>>> GetJobsByUserIdAsync(Guid userId, CancellationToken ct = default)
-    {
-        var jobs = await _dbContext.TrainingJobs
-            .Where(j => j.UserId == userId)
+        if (projectId.HasValue && projectId.Value != Guid.Empty)
+        {
+            query = query.Where(j => j.ProjectId == projectId.Value);
+        }
+
+        if (ownerId.HasValue && ownerId.Value != Guid.Empty)
+        {
+            query = query.Where(j => j.OwnerId == ownerId.Value);
+        }
+
+        var totalCount = await query.CountAsync(ct);
+        var items = await query
             .OrderByDescending(j => j.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
 
-        return ApiResponse<List<TrainingJobDto>>.Ok(jobs.Select(MapToDto).ToList());
+        return new PaginatedResult<TrainingJob>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
-    public async Task<ApiResponse<bool>> CancelJobAsync(Guid jobId, Guid userId, CancellationToken ct = default)
+    public async Task<TrainingJob?> GetJobByIdAsync(Guid id, Guid? ownerId = null, CancellationToken ct = default)
     {
-        var job = await _dbContext.TrainingJobs.FindAsync(new object[] { jobId }, ct);
-        if (job == null)
+        var job = await _dbContext.TrainingJobs.FirstOrDefaultAsync(j => j.Id == id, ct);
+        if (job == null) return null;
+
+        if (ownerId.HasValue && ownerId.Value != Guid.Empty && job.OwnerId != ownerId.Value)
         {
-            return ApiResponse<bool>.Fail("Job not found");
+            return null;
         }
 
-        if (job.UserId != userId && userId != Guid.Empty)
+        return job;
+    }
+
+    public async Task<TrainingJob?> CancelJobAsync(Guid id, Guid userId, CancellationToken ct = default)
+    {
+        var job = await _dbContext.TrainingJobs.FirstOrDefaultAsync(j => j.Id == id, ct);
+        if (job == null) return null;
+
+        if (userId != Guid.Empty && job.OwnerId != userId)
         {
-            return ApiResponse<bool>.Fail("Unauthorized to cancel this job");
+            return null;
         }
 
-        var startTime = job.StartedAt ?? job.CreatedAt;
-        var actualDurationHours = Math.Max(0.05, (DateTime.UtcNow - startTime).TotalHours);
-        var actualCost = Math.Round((decimal)actualDurationHours * job.CostPerHour * job.GpuCount, 0);
-
-        job.Status = "COMPLETED";
+        job.Status = "FAILED";
         job.CompletedAt = DateTime.UtcNow;
-        job.ActualDurationHours = actualDurationHours;
-        job.TotalCost = actualCost;
-        job.UpdatedAt = DateTime.UtcNow;
+        job.TotalCost = 0m;
 
         await _dbContext.SaveChangesAsync(ct);
 
-        var completedEvent = new JobCompletedEvent
+        var jobFailedEvent = new JobFailedEvent
         {
             JobId = job.Id,
-            UserId = job.UserId,
-            GpuType = job.GpuType,
-            NodeId = job.AssignedNodeId ?? "node-auto",
-            ActualDurationHours = actualDurationHours,
-            FinalCost = actualCost,
-            CompletedAt = DateTime.UtcNow
+            UserId = userId,
+            Reason = "Cancelled by user",
+            FailedAt = DateTime.UtcNow
         };
 
-        await _producer.ProduceAsync(KafkaTopics.JobCompleted, new Message<string, string>
-        {
-            Key = job.Id.ToString(),
-            Value = JsonSerializer.Serialize(completedEvent)
-        }, ct);
+        await _eventProducer.PublishJobFailedAsync(jobFailedEvent, ct);
+        _logger.LogInformation("Job {JobId} cancelled by User {UserId}", job.Id, userId);
 
-        _logger.LogInformation("Job {JobId} terminated. Actual duration: {Duration}h, Cost: {Cost} VND",
-            job.Id, actualDurationHours, actualCost);
-
-        return ApiResponse<bool>.Ok(true, "Job stopped and released successfully");
+        return job;
     }
-
-    private static TrainingJobDto MapToDto(TrainingJob j) => new(
-        j.Id, j.UserId, j.ProjectId, j.Name, j.Framework, j.Command,
-        j.GpuType, j.GpuCount, j.Status, j.Progress, j.EstimatedDurationHours,
-        j.CostPerHour, j.TotalCost, j.AssignedNodeId, j.CreatedAt, j.StartedAt, j.CompletedAt
-    );
 }
