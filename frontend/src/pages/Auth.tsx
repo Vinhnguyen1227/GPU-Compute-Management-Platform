@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Cpu, Lock, Mail, User as UserIcon, Shield, ArrowRight, CheckCircle2, AlertTriangle, Key } from 'lucide-react';
 import { User, Role } from '../types';
+import { authApi } from '../api/authApi';
 
 interface AuthProps {
   onLogin: (user: User) => void;
@@ -18,78 +19,133 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onRegister, usersList }) =>
   const [name, setName] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const switchLang = (lang: string) => {
     i18n.changeLanguage(lang);
     localStorage.setItem('lang', lang);
   };
 
-  const handleQuickAdmin = () => {
+  const handleQuickAdmin = async () => {
+    setIsLoading(true);
+    try {
+      const res = await authApi.login('admin@dgx-compute.io', 'Admin@2026!');
+      if (res && res.user) {
+        onLogin(res.user);
+        return;
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setIsLoading(false);
+    }
     const admin = usersList.find(u => u.role === 'ADMIN') || usersList[0];
     onLogin(admin);
   };
 
-  const handleQuickUser = () => {
+  const handleQuickUser = async () => {
+    setIsLoading(true);
+    try {
+      const res = await authApi.login('developer@ai-cloud.io', 'User@2026!');
+      if (res && res.user) {
+        onLogin(res.user);
+        return;
+      }
+    } catch {
+      // Fallback
+    } finally {
+      setIsLoading(false);
+    }
     const dev = usersList.find(u => u.role === 'USER') || usersList[1];
     onLogin(dev);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    setIsLoading(true);
 
-    if (isRegister) {
-      if (password !== confirmPassword) {
-        setErrorMsg(t('auth.password_mismatch'));
-        return;
-      }
-      if (usersList.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-        setErrorMsg(t('auth.email_exists'));
-        return;
-      }
-
-      const createdUser = onRegister({
-        name: name || email.split('@')[0],
-        email: email.toLowerCase(),
-        role: 'USER', // Self-registration defaults to USER
-        avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${email}`,
-        balance: 100000, // 100k VND welcome credit
-        currency: 'VND',
-        status: 'ACTIVE',
-      });
-
-      setSuccessMsg(t('auth.register_success'));
-      setTimeout(() => {
-        onLogin(createdUser);
-      }, 800);
-    } else {
-      const found = usersList.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if (!found) {
-        // If demo testing with any credentials, log in with default user or admin
-        if (email.includes('admin')) {
-          handleQuickAdmin();
-        } else {
-          onLogin({
-            id: `usr_${Date.now()}`,
-            name: email.split('@')[0] || 'AI Developer',
-            email: email || 'user@ai-cloud.io',
-            role: 'USER',
-            avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
-            balance: 5000000,
-            currency: 'VND',
-            status: 'ACTIVE',
-            createdAt: new Date().toISOString(),
-            totalJobsRun: 0,
-          });
-        }
-      } else {
-        if (found.status === 'BANNED') {
-          setErrorMsg('Tài khoản này đã bị khóa bởi Quản trị viên!');
+    try {
+      if (isRegister) {
+        if (password !== confirmPassword) {
+          setErrorMsg(t('auth.password_mismatch'));
+          setIsLoading(false);
           return;
         }
-        onLogin(found);
+
+        try {
+          const res = await authApi.register(email, password, name || email.split('@')[0]);
+          if (res && res.user) {
+            setSuccessMsg(t('auth.register_success'));
+            setTimeout(() => {
+              onLogin(res.user);
+            }, 800);
+            return;
+          }
+        } catch (apiErr: any) {
+          // If backend API fails, fallback to local register
+          if (usersList.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+            setErrorMsg(t('auth.email_exists'));
+            setIsLoading(false);
+            return;
+          }
+
+          const createdUser = onRegister({
+            name: name || email.split('@')[0],
+            email: email.toLowerCase(),
+            role: 'USER',
+            avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${email}`,
+            balance: 100000,
+            currency: 'VND',
+            status: 'ACTIVE',
+          });
+
+          setSuccessMsg(t('auth.register_success'));
+          setTimeout(() => {
+            onLogin(createdUser);
+          }, 800);
+          return;
+        }
+      } else {
+        try {
+          const res = await authApi.login(email, password);
+          if (res && res.user) {
+            onLogin(res.user);
+            return;
+          }
+        } catch (apiErr: any) {
+          // Fallback to local user check
+          const found = usersList.find(u => u.email.toLowerCase() === email.toLowerCase());
+          if (!found) {
+            if (email.includes('admin')) {
+              handleQuickAdmin();
+            } else {
+              onLogin({
+                id: `usr_${Date.now()}`,
+                name: email.split('@')[0] || 'AI Developer',
+                email: email || 'user@ai-cloud.io',
+                role: 'USER',
+                avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&q=80',
+                balance: 5000000,
+                currency: 'VND',
+                status: 'ACTIVE',
+                createdAt: new Date().toISOString(),
+                totalJobsRun: 0,
+              });
+            }
+          } else {
+            if (found.status === 'BANNED') {
+              setErrorMsg('Tài khoản này đã bị khóa bởi Quản trị viên!');
+              setIsLoading(false);
+              return;
+            }
+            onLogin(found);
+          }
+        }
       }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -138,7 +194,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onRegister, usersList }) =>
           <button
             type="button"
             onClick={handleQuickAdmin}
-            className="py-2.5 px-3 rounded-xl bg-purple-950/60 border border-purple-800 text-purple-300 hover:bg-purple-900/60 transition text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-md"
+            disabled={isLoading}
+            className="py-2.5 px-3 rounded-xl bg-purple-950/60 border border-purple-800 text-purple-300 hover:bg-purple-900/60 transition text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
           >
             <Shield className="w-3.5 h-3.5 text-purple-400" />
             <span>{t('auth.quick_admin')}</span>
@@ -146,7 +203,8 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onRegister, usersList }) =>
           <button
             type="button"
             onClick={handleQuickUser}
-            className="py-2.5 px-3 rounded-xl bg-emerald-950/60 border border-emerald-800 text-[#76B900] hover:bg-emerald-900/60 transition text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-md"
+            disabled={isLoading}
+            className="py-2.5 px-3 rounded-xl bg-emerald-950/60 border border-emerald-800 text-[#76B900] hover:bg-emerald-900/60 transition text-xs font-mono font-bold flex items-center justify-center gap-1.5 shadow-md disabled:opacity-50"
           >
             <UserIcon className="w-3.5 h-3.5 text-[#76B900]" />
             <span>{t('auth.quick_user')}</span>
@@ -259,9 +317,10 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onRegister, usersList }) =>
 
             <button
               type="submit"
-              className="w-full mt-4 py-3 px-4 rounded-xl bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold text-sm flex items-center justify-center gap-2 hover:opacity-95 transition shadow-lg shadow-[#76B900]/20 cursor-pointer"
+              disabled={isLoading}
+              className="w-full mt-4 py-3 px-4 rounded-xl bg-gradient-to-r from-[#76B900] to-emerald-400 text-black font-extrabold text-sm flex items-center justify-center gap-2 hover:opacity-95 transition shadow-lg shadow-[#76B900]/20 cursor-pointer disabled:opacity-50"
             >
-              <span>{isRegister ? t('auth.register') : t('auth.authenticate')}</span>
+              <span>{isLoading ? 'Đang xử lý...' : (isRegister ? t('auth.register') : t('auth.authenticate'))}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -276,3 +335,4 @@ export const Auth: React.FC<AuthProps> = ({ onLogin, onRegister, usersList }) =>
     </div>
   );
 };
+

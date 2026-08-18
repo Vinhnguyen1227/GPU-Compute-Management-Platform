@@ -12,6 +12,13 @@ import { ResourceCluster } from './pages/ResourceCluster';
 import { BillingWallet } from './pages/BillingWallet';
 import { AdminConsole } from './pages/AdminConsole';
 
+import { projectsApi } from './api/projectsApi';
+import { jobsApi } from './api/jobsApi';
+import { resourcesApi } from './api/resourcesApi';
+import { walletApi } from './api/walletApi';
+import { usersApi } from './api/usersApi';
+import { authApi } from './api/authApi';
+
 import { 
   mockUsersList,
   mockProjects, 
@@ -59,6 +66,43 @@ export function App() {
     }
   }, [currentUser]);
 
+  // Initial sync with Backend APIs
+  useEffect(() => {
+    if (!currentUser) return;
+
+    projectsApi.getProjects().then(data => {
+      if (Array.isArray(data) && data.length > 0) setProjects(data);
+    }).catch(() => {});
+
+    jobsApi.getJobs().then(data => {
+      if (Array.isArray(data) && data.length > 0) setJobs(data);
+    }).catch(() => {});
+
+    resourcesApi.getGpuNodes().then(data => {
+      if (Array.isArray(data) && data.length > 0) setNodes(data);
+    }).catch(() => {});
+
+    resourcesApi.getClusterMetrics().then(data => {
+      if (data) setMetrics(data);
+    }).catch(() => {});
+
+    walletApi.getWallet().then(w => {
+      if (w && typeof w.balance === 'number') {
+        setCurrentUser(prev => prev ? { ...prev, balance: w.balance } : prev);
+      }
+    }).catch(() => {});
+
+    walletApi.getTransactions().then(txs => {
+      if (Array.isArray(txs) && txs.length > 0) setTransactions(txs);
+    }).catch(() => {});
+
+    if (currentUser.role === 'ADMIN') {
+      usersApi.getUsers().then(uList => {
+        if (Array.isArray(uList) && uList.length > 0) setUsers(uList);
+      }).catch(() => {});
+    }
+  }, [currentUser?.id]);
+
   if (!currentUser) {
     return (
       <Auth
@@ -82,11 +126,11 @@ export function App() {
   }
 
   const handleLogout = () => {
+    authApi.logout().catch(() => {});
     setCurrentUser(null);
   };
 
   const handleNavigate = (path: string) => {
-    // Route guard: Non-admin users cannot access /admin
     if (path === '/admin' && currentUser.role !== 'ADMIN' && currentUser.role !== 'ENGINEER') {
       setCurrentPath('/dashboard');
       return;
@@ -99,6 +143,7 @@ export function App() {
 
   // ADMIN HANDLERS
   const handleUpdateUserRole = (userId: string, newRole: Role) => {
+    usersApi.updateUserRole(userId, newRole).catch(() => {});
     setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
     if (currentUser.id === userId) {
       setCurrentUser({ ...currentUser, role: newRole });
@@ -106,12 +151,15 @@ export function App() {
   };
 
   const handleAdjustUserBalance = (userId: string, amount: number) => {
+    walletApi.adminAdjustBalance(userId, amount).then(tx => {
+      if (tx) setTransactions(prev => [tx, ...prev]);
+    }).catch(() => {});
+
     setUsers(users.map(u => u.id === userId ? { ...u, balance: Math.max(0, u.balance + amount) } : u));
     if (currentUser.id === userId) {
       setCurrentUser(prev => prev ? { ...prev, balance: Math.max(0, prev.balance + amount) } : prev);
     }
 
-    const targetUser = users.find(u => u.id === userId);
     const newTx: Transaction = {
       id: `tx-adj-${Date.now().toString().slice(-4)}`,
       userId: userId,
@@ -124,13 +172,16 @@ export function App() {
       description: `Điều chỉnh số dư ví từ Quản trị viên (${amount >= 0 ? '+' : ''}${amount.toLocaleString('vi-VN')}₫)`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
-    setTransactions([newTx, ...transactions]);
+    setTransactions(prev => [newTx, ...prev]);
   };
 
   const handleToggleUserStatus = (userId: string) => {
+    const target = users.find(u => u.id === userId);
+    const nextStatus = target?.status === 'ACTIVE' ? 'BANNED' : 'ACTIVE';
+    usersApi.toggleUserStatus(userId, nextStatus).catch(() => {});
+
     setUsers(users.map(u => {
       if (u.id === userId) {
-        const nextStatus = u.status === 'ACTIVE' ? 'BANNED' : 'ACTIVE';
         return { ...u, status: nextStatus };
       }
       return u;
@@ -138,10 +189,12 @@ export function App() {
   };
 
   const handleUpdateGpuPricing = (gpuType: GPUType, newRate: number) => {
+    resourcesApi.updateGpuPricing(gpuType, newRate).catch(() => {});
     setGpuPricing(prev => ({ ...prev, [gpuType]: newRate }));
   };
 
   const handleForceKillJob = (jobId: string) => {
+    jobsApi.forceKillJob(jobId).catch(() => {});
     const targetJob = jobs.find(j => j.id === jobId);
     if (!targetJob) return;
 
@@ -159,47 +212,64 @@ export function App() {
 
   // STANDARD WORKFLOW HANDLERS
   const handleCreateProject = (newProjData: Omit<Project, 'id' | 'createdAt' | 'jobCount' | 'ownerId'>) => {
-    const newId = `proj-0${projects.length + 1}`;
-    const newProj: Project = {
-      ...newProjData,
-      id: newId,
-      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      jobCount: 0,
-      ownerId: currentUser.id,
-    };
-    setProjects([newProj, ...projects]);
+    projectsApi.createProject(newProjData).then(p => {
+      if (p) setProjects(prev => [p, ...prev]);
+    }).catch(() => {
+      const newId = `proj-0${projects.length + 1}`;
+      const newProj: Project = {
+        ...newProjData,
+        id: newId,
+        createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        jobCount: 0,
+        ownerId: currentUser.id,
+      };
+      setProjects(prev => [newProj, ...prev]);
+    });
   };
 
   const handleSubmitJob = (jobData: Omit<TrainingJob, 'id' | 'createdAt' | 'status' | 'progress'>) => {
-    const newId = `job-${900 + jobs.length + 1}`;
-    const targetNode = nodes.find(n => n.status === 'AVAILABLE') || nodes[0];
+    jobsApi.submitJob({
+      name: jobData.name,
+      projectId: jobData.projectId,
+      gpuType: jobData.gpuType,
+      gpuCount: jobData.gpuCount,
+      durationHours: jobData.durationHours,
+      command: jobData.command,
+      framework: jobData.framework,
+    }).then(j => {
+      if (j) setJobs(prev => [j, ...prev]);
+    }).catch(() => {
+      const newId = `job-${900 + jobs.length + 1}`;
+      const targetNode = nodes.find(n => n.status === 'AVAILABLE') || nodes[0];
 
-    const newJob: TrainingJob = {
-      ...jobData,
-      id: newId,
-      status: 'RUNNING',
-      progress: 5,
-      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      startedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      assignedNodeId: targetNode.id,
-      totalCost: 0,
-      userId: currentUser.id,
-    };
+      const newJob: TrainingJob = {
+        ...jobData,
+        id: newId,
+        status: 'RUNNING',
+        progress: 5,
+        createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        startedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        assignedNodeId: targetNode.id,
+        totalCost: 0,
+        userId: currentUser.id,
+      };
 
-    setJobs([newJob, ...jobs]);
+      setJobs(prev => [newJob, ...prev]);
 
-    setNodes(nodes.map(n => n.id === targetNode.id ? {
-      ...n,
-      status: 'BUSY',
-      currentJobId: newId,
-      currentJobName: jobData.name,
-      gpuUtilPercent: 92,
-    } : n));
+      setNodes(nodes.map(n => n.id === targetNode.id ? {
+        ...n,
+        status: 'BUSY',
+        currentJobId: newId,
+        currentJobName: jobData.name,
+        gpuUtilPercent: 92,
+      } : n));
 
-    setProjects(projects.map(p => p.id === jobData.projectId ? { ...p, jobCount: p.jobCount + 1 } : p));
+      setProjects(projects.map(p => p.id === jobData.projectId ? { ...p, jobCount: p.jobCount + 1 } : p));
+    });
   };
 
   const handleCancelJob = (jobId: string) => {
+    jobsApi.cancelJob(jobId).catch(() => {});
     const targetJob = jobs.find(j => j.id === jobId);
     if (!targetJob) return;
 
@@ -221,7 +291,7 @@ export function App() {
       description: `Phí thuê GPU thực tế cho ${targetJob.name} (${actualElapsedHours}h)`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
-    setTransactions([newTx, ...transactions]);
+    setTransactions(prev => [newTx, ...prev]);
 
     setJobs(jobs.map(j => j.id === jobId ? {
       ...j,
@@ -243,6 +313,10 @@ export function App() {
   };
 
   const handleTopUp = (amount: number, method: 'VietQR' | 'VNPay' | 'MoMo') => {
+    walletApi.topUp(amount, method).then(tx => {
+      if (tx) setTransactions(prev => [tx, ...prev]);
+    }).catch(() => {});
+
     setCurrentUser(prev => prev ? { ...prev, balance: prev.balance + amount } : prev);
     setUsers(users.map(u => u.id === currentUser.id ? { ...u, balance: u.balance + amount } : u));
 
@@ -258,10 +332,11 @@ export function App() {
       description: `Nạp tiền qua ${method}`,
       timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
     };
-    setTransactions([newTx, ...transactions]);
+    setTransactions(prev => [newTx, ...prev]);
   };
 
   const handleToggleNodeStatus = (nodeId: string) => {
+    resourcesApi.toggleNodeMaintenance(nodeId).catch(() => {});
     setNodes(nodes.map(n => {
       if (n.id === nodeId) {
         return {
@@ -272,6 +347,7 @@ export function App() {
       return n;
     }));
   };
+
 
   // Router logic
   const renderContent = () => {

@@ -26,10 +26,18 @@ interface ShellProps {
   children: React.ReactNode;
 }
 
+interface NavItem {
+  path: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  highlight?: boolean;
+  badge?: string;
+}
+
 export const Shell: React.FC<ShellProps> = ({ currentPath, onNavigate, onLogout, user, children }) => {
   const { t, i18n } = useTranslation();
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { path: '/dashboard', label: t('nav.cluster_overview'), icon: LayoutDashboard },
     { path: '/projects', label: t('nav.projects'), icon: FolderKanban },
     { path: '/jobs/new', label: t('nav.submit_job'), icon: PlusCircle, highlight: true },
